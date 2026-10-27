@@ -10,3 +10,7 @@ coverage/
 
 # Personal defense prep
 docs/defense-qa.md
+
+# agent setup
+.claude/
+.claude/settings.json

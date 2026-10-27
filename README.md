@@ -27,7 +27,46 @@ _Pendiente (paso 1)._
 
 ## Arquitectura
 
-_Pendiente._
+```mermaid
+flowchart LR
+  web["React (Vite)<br/>apps/web"] -->|/api| routes
+  chat["Asistente IA<br/>(tool use)"] --> services
+  subgraph api["Express 5 · apps/api"]
+    routes["routes<br/>HTTP + Zod"] --> services["services<br/>reglas y transacciones"]
+    services --> repos["repositories<br/>SQL (Kysely)"]
+    services --> domain["domain<br/>funciones puras"]
+    worker["worker de correo<br/>(outbox)"]
+  end
+  routes --> chat
+  chat -->|API de Anthropic| llm[("LLM")]
+  repos --> pg[("PostgreSQL")]
+  worker --> pg
+  worker -->|SMTP| mailpit["Mailpit"]
+```
+
+El front y el asistente usan **los mismos servicios**. Las garantías importantes (no hay doble reserva, un solo correo por reserva) son restricciones de PostgreSQL, así que ningún camino puede saltárselas.
+
+**Capas del API** (cada módulo en `apps/api/src/modules/<módulo>/`):
+
+| Capa              | Responsabilidad                                                           | No hace                |
+| ----------------- | ------------------------------------------------------------------------- | ---------------------- |
+| `*.routes.ts`     | HTTP: valida la entrada con Zod, toma la identidad de la sesión, responde | Reglas de negocio, SQL |
+| `*.service.ts`    | Reglas de negocio y transacciones                                         | Conocer HTTP           |
+| `*.repository.ts` | Consultas SQL con Kysely                                                  | Decidir reglas         |
+| `domain/`         | Funciones puras: precios, máquina de estados, franjas, fechas relativas   | I/O, leer el reloj     |
+
+**Estructura** (las carpetas se crean en el paso que las necesita):
+
+```
+apps/
+  api/src/
+    db/            cliente Kysely, migraciones, seed
+    http/          middleware de errores y de autenticación
+    modules/       auth, rooms, quotes, bookings, admin, emails, assistant
+  web/src/         pantallas (cotizar, asistente de 3 pasos, admin, chat)
+packages/
+  shared/src/      esquemas Zod, tipos y constantes compartidas
+```
 
 ## Decisiones
 

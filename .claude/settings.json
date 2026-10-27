@@ -1,3 +1,21 @@
 {
-  "includeCoAuthoredBy": false
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": ["Read(.env)", "Read(**/.env)", "Read(.env.local)", "Read(**/.env.local)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/lint-edited-file.mjs",
+            "timeout": 60,
+            "statusMessage": "Running ESLint and Prettier on edited file..."
+          }
+        ]
+      }
+    ]
+  }
 }

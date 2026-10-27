@@ -11,7 +11,20 @@ npm workspaces monorepo, all TypeScript (strict).
 - `packages/shared` — Zod schemas, types and business constants used by api, web and the AI tools
 - Root: `docker-compose.yml` (Postgres on host port 5433, Mailpit 1025/8025), `README.md`, `INCIDENTE.md`, `consultas.sql`
 
-API module structure: `routes` (HTTP only) → `service` (business rules, transactions) → `repository` (SQL).
+API modules live in `apps/api/src/modules/<module>/`: `<module>.routes.ts` (HTTP only) → `<module>.service.ts` (business rules, transactions) → `<module>.repository.ts` (SQL), plus `domain/` for pure functions. Shared infrastructure: `apps/api/src/db/` (Kysely client, migrations, seed) and `apps/api/src/http/` (error and auth middleware). Create folders only in the step that needs them.
+
+Layer-specific rules live in `.claude/rules/` and load automatically when a matching file is read or edited: `migrations`, `domain`, `api-layers`, `tests`, `assistant`, `web`.
+
+## Agent tooling
+
+| Skill             | Use for                                                                          |
+| ----------------- | -------------------------------------------------------------------------------- |
+| `tdd`             | Pricing, state machine, slot search, date resolution: red → green, test first    |
+| `kcd-principles`  | React components, hooks and tests                                                |
+| `codebase-design` | Deciding module boundaries and interfaces                                        |
+| `review`          | Review the diff against `.claude/skills/review/checklist.md` before every commit |
+
+A `PostToolUse` hook (`.claude/hooks/lint-edited-file.mjs`) runs Prettier and ESLint on every edited TS/TSX file and sends lint errors back until they are fixed. `.env` files are denied to the agent in `.claude/settings.json`.
 
 ## Rules
 
