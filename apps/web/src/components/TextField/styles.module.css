@@ -38,3 +38,8 @@
   font-size: var(--text-sm);
   color: var(--color-corduroy);
 }
+
+.textarea {
+  padding: var(--space-3) var(--space-4);
+  resize: vertical;
+}
