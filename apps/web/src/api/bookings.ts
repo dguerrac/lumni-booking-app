@@ -50,3 +50,33 @@ export function useSaveStep(id: string) {
     },
   });
 }
+
+/** draft → confirmed. The server prices and freezes the booking; the response replaces the cache. */
+export function useConfirmBooking(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<BookingDto>(`/api/bookings/${id}/confirm`, { method: 'POST' }),
+    onSuccess: (booking) => {
+      queryClient.setQueryData(bookingKey(id), booking);
+      queryClient.setQueryData(currentDraftKey, null);
+    },
+    onError: (error) => {
+      // Someone else confirmed this slot first: any quote on screen is now stale.
+      if (error instanceof ApiError && error.code === 'SLOT_TAKEN') {
+        void queryClient.invalidateQueries({ queryKey: ['quote'] });
+      }
+    },
+  });
+}
+
+/** The customer discards their own draft. */
+export function useDiscardDraft(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiFetch<BookingDto>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
+    onSuccess: (booking) => {
+      queryClient.setQueryData(bookingKey(id), booking);
+      queryClient.setQueryData(currentDraftKey, null);
+    },
+  });
+}

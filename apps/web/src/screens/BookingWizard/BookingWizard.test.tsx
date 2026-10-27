@@ -1,5 +1,5 @@
 import type { BookingDto, BookingStepRequest, QuoteRequest } from '@lumni/shared';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -17,16 +17,22 @@ import { server } from '../../test/server';
  * A fake booking API with state: PATCH applies the step like the real API
  * (simplified) and records each request, so tests check what was sent.
  */
-function mockBookingApi(initial: BookingDto) {
+function mockBookingApi(
+  initial: BookingDto,
+  { confirmFails = false }: { confirmFails?: boolean } = {},
+) {
   let booking = initial;
   const patches: BookingStepRequest[] = [];
   const quotes: QuoteRequest[] = [];
+  /** Every write, in order: 'patch:3', 'confirm', 'cancel'. */
+  const calls: string[] = [];
 
   server.use(
     http.get(`*/api/bookings/${initial.id}`, () => HttpResponse.json(booking)),
     http.patch(`*/api/bookings/${initial.id}`, async ({ request }) => {
       const body = (await request.json()) as BookingStepRequest;
       patches.push(body);
+      calls.push(`patch:${body.step}`);
       const next = Math.max(booking.currentStep, Math.min(body.step + 1, 3)) as 1 | 2 | 3;
       if (body.step === 1) {
         const { contactName, contactEmail, contactPhone, company, partySize } = body.data;
@@ -46,6 +52,41 @@ function mockBookingApi(initial: BookingDto) {
       } else {
         booking = { ...booking, extras: body.data, currentStep: next };
       }
+      return HttpResponse.json(booking);
+    }),
+    http.post(`*/api/bookings/${initial.id}/confirm`, () => {
+      calls.push('confirm');
+      if (confirmFails) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'SLOT_TAKEN',
+              message: 'Otra persona acaba de confirmar ese horario.',
+              details: { nextAvailable: { startTime: '11:00', endTime: '13:00' } },
+            },
+          },
+          { status: 409 },
+        );
+      }
+      const extrasTotal =
+        (booking.extras.projector ? 30_000 : 0) + (booking.extras.coffee ?? 0) * 8_000;
+      booking = {
+        ...booking,
+        status: 'confirmed',
+        confirmedAt: '2026-11-02T13:30:00.000Z',
+        price: {
+          base: 80_000,
+          discount: 0,
+          surcharge: 0,
+          extrasTotal,
+          total: 80_000 + extrasTotal,
+        },
+      };
+      return HttpResponse.json(booking);
+    }),
+    http.post(`*/api/bookings/${initial.id}/cancel`, () => {
+      calls.push('cancel');
+      booking = { ...booking, status: 'cancelled' };
       return HttpResponse.json(booking);
     }),
     http.post('*/api/quotes', async ({ request }) => {
@@ -68,7 +109,7 @@ function mockBookingApi(initial: BookingDto) {
     }),
   );
 
-  return { patches, quotes };
+  return { patches, quotes, calls };
 }
 
 const stepHeading = (name: string) => screen.findByRole('heading', { name, level: 2 });
@@ -189,7 +230,7 @@ describe('Booking wizard', () => {
   });
 
   it('step 3: prices the extras live with the quoter and saves them', async () => {
-    const { patches, quotes } = mockBookingApi(bookingDto({ currentStep: 3, partySize: 3 }));
+    const { patches, quotes, calls } = mockBookingApi(bookingDto({ currentStep: 3, partySize: 3 }));
     const { user } = renderApp(`/reservas/${DRAFT_ID}`);
 
     await stepHeading('Extras y confirmación');
@@ -210,7 +251,89 @@ describe('Booking wizard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
 
+    await screen.findByRole('heading', { name: 'Reserva confirmada' });
     expect(patches).toEqual([{ step: 3, data: { projector: true, coffee: 2 } }]);
+    expect(calls).toEqual(['patch:3', 'confirm']);
+  });
+
+  it('shows the confirmation with the price frozen by the server', async () => {
+    mockBookingApi(bookingDto({ currentStep: 3, partySize: 3, extras: { projector: true } }));
+    const { user } = renderApp(`/reservas/${DRAFT_ID}`);
+
+    await stepHeading('Extras y confirmación');
+    await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
+
+    expect(await screen.findByRole('heading', { name: 'Reserva confirmada' })).toBeInTheDocument();
+    expect(screen.getByTestId('confirmed-total')).toHaveTextContent('$110.000');
+    expect(
+      screen.getByText(/Sala Andes, martes, 3 de noviembre, de 09:00 a 11:00/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Hacer otra reserva' })).toBeInTheDocument();
+  });
+
+  it('opens a confirmed booking as its confirmation, not as an editable wizard', async () => {
+    mockBookingApi(
+      bookingDto({
+        status: 'confirmed',
+        currentStep: 3,
+        partySize: 3,
+        confirmedAt: '2026-11-02T13:30:00.000Z',
+        price: { base: 80_000, discount: 0, surcharge: 0, extrasTotal: 0, total: 80_000 },
+      }),
+    );
+    renderApp(`/reservas/${DRAFT_ID}`);
+
+    expect(await screen.findByRole('heading', { name: 'Reserva confirmada' })).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Pasos de la reserva' })).not.toBeInTheDocument();
+  });
+
+  it('when someone else just took the slot, explains it and sends the customer to step 2', async () => {
+    const { quotes } = mockBookingApi(bookingDto({ currentStep: 3, partySize: 3 }), {
+      confirmFails: true,
+    });
+    const { user } = renderApp(`/reservas/${DRAFT_ID}`);
+
+    await stepHeading('Extras y confirmación');
+    await screen.findByTestId('quote-total');
+    const quotesBeforeConfirm = quotes.length;
+    await user.click(screen.getByRole('button', { name: 'Confirmar reserva' }));
+
+    const alert = await screen.findByRole('alert');
+    // The summary asks the quoter again, so it stops saying "Disponible".
+    await waitFor(() => expect(quotes.length).toBeGreaterThan(quotesBeforeConfirm));
+    expect(alert).toHaveTextContent('Otra persona acaba de confirmar ese horario.');
+    expect(alert).toHaveTextContent('Siguiente horario libre: 11:00–13:00.');
+
+    await user.click(screen.getByRole('button', { name: 'Elegir otro horario' }));
+
+    expect(await stepHeading('Sala y horario')).toBeInTheDocument();
+  });
+
+  it('discards the draft after asking once, and goes back home', async () => {
+    const { calls } = mockBookingApi(bookingDto({ currentStep: 2, partySize: 3 }));
+    const { user, currentPath } = renderApp(`/reservas/${DRAFT_ID}`);
+
+    await stepHeading('Sala y horario');
+    await user.click(screen.getByRole('button', { name: 'Descartar borrador' }));
+    expect(calls).toEqual([]);
+
+    await user.click(screen.getByRole('button', { name: 'Sí, descartar' }));
+
+    await screen.findByRole('heading', { name: 'Cotiza tu sala' });
+    expect(currentPath()).toBe('/');
+    expect(calls).toEqual(['cancel']);
+  });
+
+  it('keeps the draft if the customer changes their mind', async () => {
+    const { calls } = mockBookingApi(bookingDto({ currentStep: 2, partySize: 3 }));
+    const { user } = renderApp(`/reservas/${DRAFT_ID}`);
+
+    await stepHeading('Sala y horario');
+    await user.click(screen.getByRole('button', { name: 'Descartar borrador' }));
+    await user.click(screen.getByRole('button', { name: 'No, seguir' }));
+
+    expect(screen.getByRole('button', { name: 'Descartar borrador' })).toBeInTheDocument();
+    expect(calls).toEqual([]);
   });
 
   it('says so when the booking does not exist or is not yours', async () => {

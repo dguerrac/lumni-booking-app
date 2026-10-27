@@ -1,0 +1,111 @@
+.page {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-6);
+  max-width: 36rem;
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.mark {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-de-york);
+  position: relative;
+}
+
+/* A check mark drawn with two borders, no icon font needed. */
+.mark::after {
+  content: '';
+  position: absolute;
+  left: 1.05rem;
+  top: 0.7rem;
+  width: 0.75rem;
+  height: 1.3rem;
+  border: solid var(--color-white);
+  border-width: 0 4px 4px 0;
+  transform: rotate(45deg);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-extra-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  font-size: var(--text-lg);
+}
+
+.note {
+  color: var(--color-corduroy);
+}
+
+.receipt {
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  padding: var(--space-6);
+  background: var(--color-white);
+  border-radius: var(--radius-panel);
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--color-corduroy);
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: var(--space-4);
+  border-top: var(--border-hairline);
+  font-weight: var(--weight-bold);
+}
+
+.amount {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-extra-bold);
+  color: var(--color-night-shadz);
+  font-variant-numeric: tabular-nums;
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 3rem;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-night-shadz);
+  border-radius: var(--radius-pill);
+  color: var(--color-night-shadz);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.action:hover {
+  background: var(--color-lavender-blush);
+}
+
+@media (max-width: 30rem) {
+  .receipt {
+    padding: var(--space-5);
+  }
+}

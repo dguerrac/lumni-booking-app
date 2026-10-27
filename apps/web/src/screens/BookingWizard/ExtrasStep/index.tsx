@@ -1,6 +1,7 @@
 import type { BookingDto } from '@lumni/shared';
 import { useForm } from 'react-hook-form';
-import { useSaveStep } from '../../../api/bookings';
+import { useConfirmBooking, useSaveStep } from '../../../api/bookings';
+import { ApiError } from '../../../api/client';
 import { useLiveQuote, useRooms } from '../../../api/quotes';
 import { Button } from '../../../components/Button';
 import { ErrorList } from '../../../components/ErrorList';
@@ -11,15 +12,16 @@ import { QuoteResult } from '../../Quote/QuoteResult';
 import styles from '../styles.module.css';
 import extrasStyles from './styles.module.css';
 
-type Props = { booking: BookingDto; onBack: () => void };
+type Props = { booking: BookingDto; onBack: () => void; onChooseAnotherSlot: () => void };
 type ExtrasValues = { projector: boolean; coffee: number };
 
 /**
  * Step 3: extras and a live summary. The price comes from POST /api/quotes
  * with the extras, the same quoter the API uses at confirmation.
  */
-export function ExtrasStep({ booking, onBack }: Props) {
+export function ExtrasStep({ booking, onBack, onChooseAnotherSlot }: Props) {
   const save = useSaveStep(booking.id);
+  const confirm = useConfirmBooking(booking.id);
   const { data: rooms } = useRooms();
   const { register, handleSubmit, watch } = useForm<ExtrasValues>({
     defaultValues: {
@@ -44,8 +46,16 @@ export function ExtrasStep({ booking, onBack }: Props) {
       : null,
   );
 
-  // Confirmation (status → confirmed) is wired in Step 8; for now this saves the extras.
-  const onSubmit = handleSubmit(() => save.mutate({ step: 3, data: extras }));
+  // Saves the extras (step 3), then asks the server to confirm. The server
+  // re-checks everything, prices the booking and freezes that price.
+  const onSubmit = handleSubmit(() =>
+    save.mutate({ step: 3, data: extras }, { onSuccess: () => confirm.mutate() }),
+  );
+
+  const slotTaken =
+    confirm.error instanceof ApiError && confirm.error.code === 'SLOT_TAKEN'
+      ? (confirm.error.details as { nextAvailable?: { startTime: string; endTime: string } | null })
+      : null;
 
   return (
     <form className={styles.panel} onSubmit={onSubmit} noValidate>
@@ -89,13 +99,28 @@ export function ExtrasStep({ booking, onBack }: Props) {
       </section>
 
       <ErrorList error={save.error} />
+      {slotTaken ? (
+        <div role="alert" className={extrasStyles.slotTaken}>
+          <p className={extrasStyles.slotTakenTitle}>{confirm.error?.message}</p>
+          <p>
+            {slotTaken.nextAvailable
+              ? `Siguiente horario libre: ${slotTaken.nextAvailable.startTime}–${slotTaken.nextAvailable.endTime}.`
+              : 'No queda otro horario libre ese día con esta duración.'}
+          </p>
+          <Button variant="secondary" onClick={onChooseAnotherSlot}>
+            Elegir otro horario
+          </Button>
+        </div>
+      ) : (
+        <ErrorList error={confirm.error} />
+      )}
 
       <div className={styles.actions}>
         <Button variant="secondary" onClick={onBack}>
           Atrás
         </Button>
-        <Button type="submit" loading={save.isPending}>
-          Confirmar reserva
+        <Button type="submit" loading={save.isPending || confirm.isPending}>
+          {confirm.isPending ? 'Confirmando…' : 'Confirmar reserva'}
         </Button>
       </div>
     </form>

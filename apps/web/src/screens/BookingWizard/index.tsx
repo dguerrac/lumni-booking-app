@@ -6,7 +6,9 @@ import { ApiError } from '../../api/client';
 import { useRooms } from '../../api/quotes';
 import { PageLoader } from '../../components/PageLoader';
 import { endTimeOf, formatLongDate } from '../../lib/format';
+import { Confirmed } from './Confirmed';
 import { ContactStep } from './ContactStep';
+import { DiscardDraft } from './DiscardDraft';
 import { ExtrasStep } from './ExtrasStep';
 import { SlotStep } from './SlotStep';
 import { Stepper } from './Stepper';
@@ -42,10 +44,12 @@ export function BookingWizardScreen() {
   }
 
   const data = booking.data;
-  if (data.status !== 'draft') {
+  if (data.status === 'confirmed' || data.status === 'completed')
+    return <Confirmed booking={data} />;
+  if (data.status === 'cancelled') {
     return (
       <div className={styles.notice}>
-        <h1 className={styles.title}>Esta reserva ya no se puede editar</h1>
+        <h1 className={styles.title}>Esta reserva fue cancelada</h1>
         <Link className={styles.link} to="/">
           Volver a cotizar
         </Link>
@@ -62,9 +66,12 @@ export function BookingWizardScreen() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.intro}>
-        <h1 className={styles.title}>Tu reserva</h1>
-        {summary && <p className={styles.lead}>{summary}</p>}
+      <header className={styles.header}>
+        <div className={styles.intro}>
+          <h1 className={styles.title}>Tu reserva</h1>
+          {summary && <p className={styles.lead}>{summary}</p>}
+        </div>
+        <DiscardDraft bookingId={data.id} />
       </header>
 
       <Stepper active={step} />
@@ -73,7 +80,13 @@ export function BookingWizardScreen() {
       {step === 2 && (
         <SlotStep booking={data} onSaved={() => setChosenStep(3)} onBack={() => setChosenStep(1)} />
       )}
-      {step === 3 && <ExtrasStep booking={data} onBack={() => setChosenStep(2)} />}
+      {step === 3 && (
+        <ExtrasStep
+          booking={data}
+          onBack={() => setChosenStep(2)}
+          onChooseAnotherSlot={() => setChosenStep(2)}
+        />
+      )}
     </div>
   );
 }

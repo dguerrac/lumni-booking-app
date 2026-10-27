@@ -54,3 +54,17 @@
   padding-top: var(--space-5);
   border-top: var(--border-hairline);
 }
+
+.slotTaken {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-input);
+  background: var(--color-lavender-blush);
+}
+
+.slotTakenTitle {
+  color: var(--color-carnation);
+  font-weight: var(--weight-bold);
+}
