@@ -16,3 +16,5 @@ export type BookingExtras = { projector?: boolean; coffee?: number };
 export type { RoomDto } from './rooms';
 export { quoteRequestSchema } from './quotes';
 export type { PriceBreakdown, QuoteReason, QuoteRequest, QuoteResponse } from './quotes';
+export { loginRequestSchema } from './auth';
+export type { LoginRequest, UserDto } from './auth';
