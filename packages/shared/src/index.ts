@@ -1,14 +1,8 @@
 // Shared between the API, the React app and the AI tool layer.
 // Schemas, types and business constants are added step by step.
 
-export const ROOM_SIZES = ['small', 'medium', 'large'] as const;
-export type RoomSize = (typeof ROOM_SIZES)[number];
-
-export const BOOKING_STATUSES = ['draft', 'confirmed', 'completed', 'cancelled'] as const;
-export type BookingStatus = (typeof BOOKING_STATUSES)[number];
-
-export const USER_ROLES = ['customer', 'admin'] as const;
-export type UserRole = (typeof USER_ROLES)[number];
+export { BOOKING_STATUSES, ROOM_SIZES, USER_ROLES } from './constants';
+export type { BookingStatus, RoomSize, UserRole } from './constants';
 
 /** Extras chosen in wizard step 3. coffee = number of people who want coffee. */
 export type BookingExtras = { projector?: boolean; coffee?: number };
@@ -26,3 +20,10 @@ export { bookingStepSchema, contactStepSchema, createBookingSchema } from './boo
 export type { BookingDto, BookingStepRequest, ContactStep, WizardStep } from './bookings';
 export { loginRequestSchema } from './auth';
 export type { LoginRequest, UserDto } from './auth';
+export { adminBookingsQuerySchema, adminCancelSchema } from './admin';
+export type {
+  AdminBookingDto,
+  AdminBookingPage,
+  AdminBookingsQuery,
+  AdminCancelRequest,
+} from './admin';
