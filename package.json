@@ -13,7 +13,7 @@
     "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @lumni/api\" \"npm run dev -w @lumni/web\"",
     "db:migrate": "npm run db:migrate -w @lumni/api",
     "db:seed": "npm run db:seed -w @lumni/api",
-    "test": "npm run test --workspaces --if-present",
+    "test": "vitest run",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "format": "prettier --write ."
