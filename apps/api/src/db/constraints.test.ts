@@ -1,9 +1,9 @@
-import { type Kysely, sql } from 'kysely';
+import { type Insertable, type Kysely, sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { requireEnv } from '../config/env';
+import { confirmedBooking, getSeedIds, insertBooking } from '../test/factories';
 import { createDb } from './client';
 import type { BookingsTable, Database } from './types';
-import type { Insertable } from 'kysely';
 
 // These tests prove the guarantees live in PostgreSQL itself, independent of
 // any service code.
@@ -15,15 +15,9 @@ let roomB: number;
 
 beforeAll(async () => {
   db = createDb(requireEnv('TEST_DATABASE_URL'));
-  const customer = await db
-    .selectFrom('users')
-    .select('id')
-    .where('email', '=', 'cliente.a@lumni.test')
-    .executeTakeFirstOrThrow();
-  const rooms = await db.selectFrom('rooms').select('id').orderBy('id').limit(2).execute();
-  customerId = customer.id;
-  roomA = rooms[0]!.id;
-  roomB = rooms[1]!.id;
+  const ids = await getSeedIds(db);
+  customerId = ids.customerAId;
+  [roomA, roomB] = ids.roomIds as [number, number];
 });
 
 afterAll(async () => {
@@ -34,20 +28,15 @@ beforeEach(async () => {
   await sql`TRUNCATE bookings`.execute(db);
 });
 
-function confirmed(roomId: number, startsAt: string, endsAt: string): Insertable<BookingsTable> {
-  return {
+const confirmed = (roomId: number, startsAt: string, endsAt: string) =>
+  confirmedBooking({
     customer_id: customerId,
     room_id: roomId,
     starts_at: startsAt,
     ends_at: endsAt,
-    status: 'confirmed',
-    total: 80000,
-    confirmed_at: new Date(),
-  };
-}
+  });
 
-const insert = (booking: Insertable<BookingsTable>) =>
-  db.insertInto('bookings').values(booking).execute();
+const insert = (booking: Insertable<BookingsTable>) => insertBooking(db, booking);
 
 describe('no_overlap_confirmed exclusion constraint', () => {
   it('rejects a second confirmed booking that overlaps in the same room', async () => {
