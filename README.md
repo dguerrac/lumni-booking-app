@@ -4,7 +4,7 @@ Prueba técnica Lumni TI. Monorepo TypeScript: React + Express + PostgreSQL.
 
 ## Cómo correrlo localmente
 
-Requisitos: Node 20.11+ (ver `.nvmrc`), Docker.
+Requisitos: Node 20.12 o superior (probado con 22 y 24; ver `.nvmrc`) y Docker (Docker Desktop u OrbStack).
 
 ```bash
 cp .env.example .env
@@ -19,7 +19,9 @@ npm run dev
 - API: http://localhost:3000/api/health
 - Correos capturados (Mailpit): http://localhost:8025
 
-Pruebas: `npm test`
+Pruebas: `npm test` (con `docker compose up -d` corriendo: las pruebas del API usan la base `lumni_test`, nunca un mock).
+
+Otros comandos: `npm run typecheck` · `npm run lint`
 
 ## Usuarios de prueba
 
@@ -82,36 +84,63 @@ packages/
 
 El enunciado deja vacíos; la regla es decidir, escribirlo y seguir. Estas son las decisiones tomadas.
 
-| Vacío en el enunciado                                 | Decisión                                                                                                                           | Por qué                                                                                          |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| ¿La reserva debe terminar antes de las 21:00?         | Sí: inicio ≥ 7:00 y fin ≤ 21:00                                                                                                    | El horario de apertura es cuando se puede usar la sala                                           |
-| Horas de inicio permitidas                            | En punto o y media (7:00, 7:30…)                                                                                                   | Coincide con bloques de 30 minutos y simplifica buscar el siguiente horario                      |
-| Fechas y horas pasadas                                | Rechazadas; hoy solo con hora de inicio futura (hora de Bogotá)                                                                    | No se puede reservar el pasado                                                                   |
-| Festivos                                              | Se ignoran (abre lunes a sábado aunque sea festivo)                                                                                | No está en el enunciado; requeriría una tabla de festivos                                        |
-| Umbrales de descuento                                 | ≥ 4 h → 10 %, ≥ 8 h → 20 %, no acumulables                                                                                         | "Desde" es inclusivo                                                                             |
-| Base del recargo                                      | 25 % sobre (base − descuento)                                                                                                      | Lo dice el enunciado; tiene prueba explícita                                                     |
-| Precio de los extras (no dado)                        | Proyector 30.000 COP fijo por reserva; café 8.000 COP por persona                                                                  | Necesitan un número; están en un solo objeto de configuración                                    |
-| ¿Descuento y recargo aplican a los extras?            | No: los extras se suman al final                                                                                                   | Lo más simple de explicar                                                                        |
-| Qué reservas bloquean un horario                      | Confirmadas y completadas                                                                                                          | El enunciado dice "confirmada"; los borradores no bloquean                                       |
-| "Siguiente horario disponible el mismo día"           | El primer inicio posterior al pedido, misma duración, que termine antes de las 21:00 y esté libre; si no hay, se dice              | "Siguiente" es después; evita sugerir el pasado                                                  |
-| Cotización de un horario no reservable                | `200` con `bookable: false`, razones y precio; `400` solo si el formato es inválido                                                | Es una cotización válida de un horario inválido                                                  |
-| Endpoints de salas y cotización                       | Públicos (no requieren sesión)                                                                                                     | Cotizar no cambia nada; reservar sí requiere sesión                                              |
-| Sesión                                                | JWT HS256 de 8 horas en cookie `httpOnly`, `SameSite=Lax` (`Secure` en producción); el token solo lleva id y rol                   | JavaScript no puede leer la cookie; no hace falta guardar sesiones en el servidor                |
-| ¿Cuántos borradores puede tener un cliente?           | Uno abierto. Volver a "Reservar" mueve ese borrador al nuevo horario (conserva datos de contacto, limpia extras, vuelve al paso 1) | "El borrador actual" debe ser uno solo; lo garantiza un índice único parcial en la base de datos |
-| ¿Cuántas reservas confirmadas puede tener un cliente? | Sin límite; solo no puede haber dos confirmadas de la misma sala que se crucen                                                     | El enunciado no pone límite                                                                      |
-| Moneda                                                | Pesos enteros, mostrados como $40.000                                                                                              | El enunciado usa COP sin decimales                                                               |
+| Vacío en el enunciado                                 | Decisión                                                                                                                                    | Por qué                                                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| ¿La reserva debe terminar antes de las 21:00?         | Sí: inicio ≥ 7:00 y fin ≤ 21:00                                                                                                             | El horario de apertura es cuando se puede usar la sala                                               |
+| Horas de inicio permitidas                            | En punto o y media (7:00, 7:30…)                                                                                                            | Coincide con bloques de 30 minutos y simplifica buscar el siguiente horario                          |
+| Fechas y horas pasadas                                | Rechazadas; hoy solo con hora de inicio futura (hora de Bogotá)                                                                             | No se puede reservar el pasado                                                                       |
+| Festivos                                              | Se ignoran (abre lunes a sábado aunque sea festivo)                                                                                         | No está en el enunciado; requeriría una tabla de festivos                                            |
+| Umbrales de descuento                                 | ≥ 4 h → 10 %, ≥ 8 h → 20 %, no acumulables                                                                                                  | "Desde" es inclusivo                                                                                 |
+| Base del recargo                                      | 25 % sobre (base − descuento)                                                                                                               | Lo dice el enunciado; tiene prueba explícita                                                         |
+| Precio de los extras (no dado)                        | Proyector 30.000 COP fijo por reserva; café 8.000 COP por persona                                                                           | Necesitan un número; están en un solo objeto de configuración                                        |
+| ¿Descuento y recargo aplican a los extras?            | No: los extras se suman al final                                                                                                            | Lo más simple de explicar                                                                            |
+| Qué reservas bloquean un horario                      | Confirmadas y completadas                                                                                                                   | El enunciado dice "confirmada"; los borradores no bloquean                                           |
+| "Siguiente horario disponible el mismo día"           | El primer inicio posterior al pedido, misma duración, que termine antes de las 21:00 y esté libre; si no hay, se dice                       | "Siguiente" es después; evita sugerir el pasado                                                      |
+| Cotización de un horario no reservable                | `200` con `bookable: false`, razones y precio; `400` solo si el formato es inválido                                                         | Es una cotización válida de un horario inválido                                                      |
+| Endpoints de salas y cotización                       | Públicos (no requieren sesión)                                                                                                              | Cotizar no cambia nada; reservar sí requiere sesión                                                  |
+| Sesión                                                | JWT HS256 de 8 horas en cookie `httpOnly`, `SameSite=Lax` (`Secure` en producción); el token solo lleva id y rol                            | JavaScript no puede leer la cookie; no hace falta guardar sesiones en el servidor                    |
+| ¿Cuántos borradores puede tener un cliente?           | Uno abierto. Volver a "Reservar" mueve ese borrador al nuevo horario (conserva datos de contacto, limpia extras, vuelve al paso 1)          | "El borrador actual" debe ser uno solo; lo garantiza un índice único parcial en la base de datos     |
+| ¿Cuántas reservas confirmadas puede tener un cliente? | Sin límite; solo no puede haber dos confirmadas de la misma sala que se crucen                                                              | El enunciado no pone límite                                                                          |
+| ¿Qué se valida en cada paso del borrador?             | Formato con Zod (`400`); reglas de horario, capacidad de la sala y café ≤ personas (`422` con razones). La disponibilidad solo al confirmar | Los borradores no bloquean horarios; revisar disponibilidad antes de confirmar daría falsa seguridad |
+| ¿Cuándo se acuerda el precio?                         | Al confirmar: el servidor lo recalcula con el cotizador y lo guarda en la reserva; después nunca se recalcula                               | El precio de un borrador puede quedar viejo; la confirmación es el contrato                          |
+| ¿Puede pasar un borrador a cancelado?                 | Sí: el cliente descarta su propio borrador (motivo automático) y el admin puede descartarlo con motivo                                      | El enunciado solo muestra cancelar desde confirmada; un borrador abandonado necesita una salida      |
+| ¿Quién cancela una reserva confirmada?                | Solo el admin, con motivo obligatorio (mínimo 5 caracteres)                                                                                 | El enunciado solo define la cancelación del admin                                                    |
+| ¿Quién marca una reserva como completada?             | El admin, solo cuando ya terminó (`ends_at ≤ ahora`)                                                                                        | No hay regla en el enunciado; evita un proceso programado                                            |
+| Reserva de otro cliente                               | `404`, no `403`                                                                                                                             | No revelar que existe                                                                                |
+| Paginación del admin                                  | Por número de página (`page`, `pageSize` ≤ 100), orden `created_at DESC, id DESC`                                                           | Suficiente a este tamaño y da "Página 2 de 3"; con millones de filas usaría cursor                   |
+| Moneda                                                | Pesos enteros, mostrados como $40.000                                                                                                       | El enunciado usa COP sin decimales                                                                   |
 
 ## API
 
-| Método | Ruta               | Descripción                                                                                                                            |
-| ------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/api/rooms`       | Salas con tamaño, capacidad y tarifa por hora                                                                                          |
-| POST   | `/api/auth/login`  | `{ email, password }` → `{ user }` y cookie de sesión `httpOnly`                                                                       |
-| POST   | `/api/auth/logout` | Cierra la sesión (borra la cookie)                                                                                                     |
-| GET    | `/api/auth/me`     | Usuario de la sesión, o `401`                                                                                                          |
-| POST   | `/api/quotes`      | `{ roomId, date: 'AAAA-MM-DD', startTime: 'HH:mm', durationHours, extras? }` → desglose, `bookable`, razones y siguiente horario libre |
+Todas las respuestas de error tienen la forma `{ error: { code, message, details? } }`: `400` formato inválido (con el campo), `401` sin sesión, `403` sin permiso, `404` no existe o no es tuya, `409` conflicto de estado o de horario, `422` regla de negocio (con las razones en español).
 
-Errores: siempre `{ error: { code, message, details? } }`.
+| Método | Ruta                               | Quién   | Descripción                                                                                                                                                |
+| ------ | ---------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/login`                  | Todos   | `{ email, password }` → `{ user }` y cookie de sesión `httpOnly`                                                                                           |
+| POST   | `/api/auth/logout`                 | Todos   | Cierra la sesión                                                                                                                                           |
+| GET    | `/api/auth/me`                     | Sesión  | Usuario de la sesión, o `401`                                                                                                                              |
+| GET    | `/api/rooms`                       | Todos   | Salas con tamaño, capacidad y tarifa por hora                                                                                                              |
+| POST   | `/api/quotes`                      | Todos   | `{ roomId, date: 'AAAA-MM-DD', startTime: 'HH:mm', durationHours, extras? }` → desglose, `bookable`, razones, horario de ese día y siguiente horario libre |
+| POST   | `/api/bookings`                    | Cliente | Crea el borrador desde una cotización (o mueve el borrador abierto al nuevo horario)                                                                       |
+| GET    | `/api/bookings/draft/current`      | Cliente | El borrador abierto, o `404`                                                                                                                               |
+| GET    | `/api/bookings/:id`                | Cliente | Una reserva propia                                                                                                                                         |
+| PATCH  | `/api/bookings/:id`                | Cliente | `{ step: 1 \| 2 \| 3, data }`: guarda un paso del asistente                                                                                                |
+| POST   | `/api/bookings/:id/confirm`        | Cliente | Borrador → confirmada; congela el precio. Idempotente                                                                                                      |
+| POST   | `/api/bookings/:id/cancel`         | Cliente | Descarta el borrador propio                                                                                                                                |
+| GET    | `/api/admin/bookings`              | Admin   | `?status=&roomId=&page=&pageSize=` → `{ items, total, page, pageSize }`                                                                                    |
+| GET    | `/api/admin/bookings/:id`          | Admin   | Detalle de cualquier reserva, con cliente y motivo de cancelación                                                                                          |
+| POST   | `/api/admin/bookings/:id/cancel`   | Admin   | `{ reason }` (mínimo 5 caracteres): borrador o confirmada → cancelada                                                                                      |
+| POST   | `/api/admin/bookings/:id/complete` | Admin   | Confirmada → completada, solo si ya terminó                                                                                                                |
+
+### Estados de una reserva
+
+```
+borrador ──► confirmada ──► completada
+   │             │
+   └──► cancelada ◄┘
+```
+
+Completada y cancelada son finales. La máquina de estados es un mapa puro con las 16 combinaciones probadas; cada servicio pone los estados de origen permitidos en el `WHERE` del `UPDATE`, así la regla se aplica de forma atómica.
 
 ## Garantías de concurrencia
 
@@ -160,7 +189,15 @@ _Pendiente (Parte 2.2), incluida la regla 4._
 
 ## Qué quedó por fuera y por qué
 
-_Pendiente._
+| Qué                                             | Por qué                                                                                                                                                                |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Festivos                                        | No están en el enunciado; requerirían una tabla de festivos. El coworking abre lunes a sábado aunque sea festivo                                                       |
+| Revocar sesiones antes de que expiren           | El JWT dura 8 horas y el logout borra la cookie, pero no invalida el token en el servidor. Se resolvería con sesiones en base de datos o una lista de tokens revocados |
+| Límite de intentos de login                     | Aceptable para una prueba local; en producción agregaría límite por IP y por cuenta                                                                                    |
+| Paginación por cursor                           | Con este volumen la paginación por número es más simple; con millones de filas usaría cursor                                                                           |
+| Dockerfiles del API y el front                  | En desarrollo corren con Node; Docker se usa para PostgreSQL y Mailpit                                                                                                 |
+| Edición de la reserva confirmada por el cliente | No la pide el enunciado; solo el admin la cancela                                                                                                                      |
+| Ver "mis reservas" como cliente                 | No la pide el enunciado; el cliente ve su confirmación y retoma su borrador                                                                                            |
 
 ## Uso de IA
 
