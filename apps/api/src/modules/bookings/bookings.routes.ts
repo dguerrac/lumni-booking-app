@@ -1,9 +1,8 @@
 import { bookingStepSchema, createBookingSchema } from '@lumni/shared';
 import { Router } from 'express';
-import { z } from 'zod';
 import type { AppDeps } from '../../deps';
 import { requireAuth } from '../../http/auth';
-import { NotFoundError } from '../../http/errors';
+import { parseBookingId } from '../../http/params';
 import {
   cancelOwnDraft,
   confirmBooking,
@@ -12,13 +11,6 @@ import {
   getCustomerBooking,
   saveDraftStep,
 } from './bookings.service';
-
-/** A malformed id can't match any booking: answer 404, same as someone else's id. */
-function parseBookingId(raw: string): string {
-  const parsed = z.string().uuid().safeParse(raw);
-  if (!parsed.success) throw new NotFoundError('BOOKING_NOT_FOUND', 'La reserva no existe.');
-  return parsed.data;
-}
 
 // Every route uses req.user.id (the session) as the customer, never an id from the request.
 export function bookingsRouter({ db, now }: AppDeps) {
