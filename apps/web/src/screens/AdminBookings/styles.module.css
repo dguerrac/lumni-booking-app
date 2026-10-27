@@ -1,0 +1,126 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-extra-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  color: var(--color-corduroy);
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 16rem));
+  gap: var(--space-4);
+}
+
+.panel {
+  padding: var(--space-2) 0;
+  background: var(--color-white);
+  border-radius: var(--radius-panel);
+}
+
+.panel > :not(.tableScroll) {
+  margin: var(--space-5) var(--space-6);
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: var(--space-6);
+}
+
+.table th:last-child,
+.table td:last-child {
+  padding-right: var(--space-6);
+}
+
+.table th {
+  font-size: var(--text-sm);
+  color: var(--color-corduroy);
+  border-bottom: var(--border-hairline);
+  white-space: nowrap;
+}
+
+.table tbody tr + tr td {
+  border-top: var(--border-hairline);
+}
+
+.table tbody tr:hover {
+  background: var(--color-soft-lavender);
+}
+
+.amount {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.rowLink {
+  color: var(--color-night-shadz);
+  font-weight: var(--weight-bold);
+  text-decoration: none;
+}
+
+.rowLink:hover {
+  text-decoration: underline;
+}
+
+.customer,
+.email {
+  display: block;
+}
+
+.email {
+  font-size: var(--text-sm);
+  color: var(--color-corduroy);
+}
+
+.empty {
+  color: var(--color-corduroy);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  color: var(--color-corduroy);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 30rem) {
+  .filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pagination {
+    justify-content: space-between;
+  }
+}

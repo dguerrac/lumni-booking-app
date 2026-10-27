@@ -1,4 +1,4 @@
-import type { BookingDto, QuoteResponse, RoomDto, UserDto } from '@lumni/shared';
+import type { AdminBookingDto, BookingDto, QuoteResponse, RoomDto, UserDto } from '@lumni/shared';
 import { http, HttpResponse } from 'msw';
 import { server } from './server';
 
@@ -99,4 +99,31 @@ export function bookingDto(overrides: Partial<BookingDto> = {}): BookingDto {
 /** GET /api/bookings/draft/current answers with this draft. */
 export function mockCurrentDraft(draft: BookingDto) {
   server.use(http.get('*/api/bookings/draft/current', () => HttpResponse.json(draft)));
+}
+
+export const adminUser: UserDto = {
+  id: 3,
+  email: 'admin@lumni.test',
+  name: 'Admin Lumni',
+  phone: null,
+  company: 'Lumni Coworking',
+  role: 'admin',
+};
+
+/** A confirmed booking of Ana as the admin sees it; override what the test needs. */
+export function adminBookingDto(overrides: Partial<AdminBookingDto> = {}): AdminBookingDto {
+  return {
+    ...bookingDto({
+      status: 'confirmed',
+      currentStep: 3,
+      partySize: 3,
+      confirmedAt: '2026-11-02T13:30:00.000Z',
+      price: { base: 80_000, discount: 0, surcharge: 0, extrasTotal: 0, total: 80_000 },
+    }),
+    customer: { id: anaGomez.id, name: anaGomez.name, email: anaGomez.email },
+    roomName: 'Sala Andes',
+    cancelReason: null,
+    cancelledAt: null,
+    ...overrides,
+  };
 }
