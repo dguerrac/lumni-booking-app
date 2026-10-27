@@ -20,10 +20,12 @@ export { bookingStepSchema, contactStepSchema, createBookingSchema } from './boo
 export type { BookingDto, BookingStepRequest, ContactStep, WizardStep } from './bookings';
 export { loginRequestSchema } from './auth';
 export type { LoginRequest, UserDto } from './auth';
-export { adminBookingsQuerySchema, adminCancelSchema } from './admin';
+export { adminBookingsQuerySchema, adminCancelSchema, EMAIL_STATUSES } from './admin';
 export type {
   AdminBookingDto,
   AdminBookingPage,
   AdminBookingsQuery,
   AdminCancelRequest,
+  BookingEmailDto,
+  EmailStatus,
 } from './admin';

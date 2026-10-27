@@ -124,6 +124,7 @@ export function adminBookingDto(overrides: Partial<AdminBookingDto> = {}): Admin
     roomName: 'Sala Andes',
     cancelReason: null,
     cancelledAt: null,
+    email: null,
     ...overrides,
   };
 }
