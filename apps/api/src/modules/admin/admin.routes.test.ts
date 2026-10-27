@@ -299,3 +299,105 @@ describe('POST /api/admin/bookings/:id/complete', () => {
     expect(res.body.error.code).toBe('INVALID_TRANSITION');
   });
 });
+
+describe('confirmation email status (Part 2.1)', () => {
+  const T = new Date('2026-11-02T13:00:00.000Z');
+
+  function emailFor(bookingId: string, overrides: Record<string, unknown> = {}) {
+    return db
+      .insertInto('email_outbox')
+      .values({
+        booking_id: bookingId,
+        kind: 'booking_confirmed',
+        to_email: 'ana@andes.studio',
+        payload: JSON.stringify({}),
+        ...overrides,
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+  }
+
+  it('shows each booking’s email status in the list (null when it has none)', async () => {
+    await emailFor(ids.b1, { status: 'sent', attempts: 1, sent_at: T });
+    await emailFor(ids.b2, {
+      status: 'retrying',
+      attempts: 3,
+      next_attempt_at: T,
+      last_error: 'SMTP 421',
+    });
+    const admin = await asAdmin();
+
+    const res = await admin.get('/api/admin/bookings');
+    const byId = Object.fromEntries(
+      res.body.items.map((item: { id: string; email: unknown }) => [item.id, item.email]),
+    );
+
+    expect(byId[ids.b1]).toEqual({
+      status: 'sent',
+      attempts: 1,
+      maxAttempts: 6,
+      lastError: null,
+      sentAt: T.toISOString(),
+      nextAttemptAt: expect.any(String),
+    });
+    expect(byId[ids.b2]).toMatchObject({ status: 'retrying', attempts: 3, lastError: 'SMTP 421' });
+    expect(byId[ids.b4]).toBeNull(); // a draft has no email
+  });
+
+  it('shows the email status on the detail too', async () => {
+    await emailFor(ids.b1, {
+      status: 'failed',
+      attempts: 6,
+      last_error: 'SMTP 550: buzón no existe',
+    });
+    const admin = await asAdmin();
+
+    const res = await admin.get(`/api/admin/bookings/${ids.b1}`);
+
+    expect(res.body.email).toMatchObject({
+      status: 'failed',
+      attempts: 6,
+      lastError: 'SMTP 550: buzón no existe',
+    });
+  });
+
+  describe('POST /api/admin/bookings/:id/email/retry', () => {
+    const retry = async (id: string) =>
+      (await asAdmin()).post(`/api/admin/bookings/${id}/email/retry`);
+
+    it('puts a failed email back in the queue with a fresh set of attempts', async () => {
+      const email = await emailFor(ids.b1, {
+        status: 'failed',
+        attempts: 6,
+        last_error: 'SMTP 550',
+      });
+
+      const res = await retry(ids.b1);
+
+      expect(res.status).toBe(200);
+      expect(res.body.email).toMatchObject({ status: 'pending', attempts: 0 });
+      const row = await db
+        .selectFrom('email_outbox')
+        .selectAll()
+        .where('id', '=', email.id)
+        .executeTakeFirstOrThrow();
+      expect(row.next_attempt_at.getTime()).toBeLessThanOrEqual(Date.now());
+    });
+
+    it('refuses to retry an email that has not failed', async () => {
+      await emailFor(ids.b1, { status: 'sent', attempts: 1, sent_at: T });
+
+      const res = await retry(ids.b1);
+
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('EMAIL_NOT_FAILED');
+    });
+
+    it('answers 404 when the booking has no email', async () => {
+      const res = await retry(ids.b4);
+
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('EMAIL_NOT_FOUND');
+    });
+  });
+});

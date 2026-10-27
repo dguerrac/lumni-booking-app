@@ -8,6 +8,7 @@ import {
   completeBooking,
   getBookingForAdmin,
   listBookingsForAdmin,
+  retryFailedEmail,
 } from './admin.service';
 
 export function adminRouter({ db, now }: AppDeps) {
@@ -30,6 +31,10 @@ export function adminRouter({ db, now }: AppDeps) {
 
   router.post('/bookings/:id/complete', async (req, res) => {
     res.json(await completeBooking(db, parseBookingId(req.params.id), now()));
+  });
+
+  router.post('/bookings/:id/email/retry', async (req, res) => {
+    res.json(await retryFailedEmail(db, parseBookingId(req.params.id)));
   });
 
   return router;

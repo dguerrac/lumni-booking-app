@@ -2,14 +2,34 @@ import type { AdminBookingsQuery } from '@lumni/shared';
 import { type Kysely, sql } from 'kysely';
 import type { Database } from '../../db/types';
 import { sourcesFor } from '../bookings/domain/state-machine';
+import { BOOKING_CONFIRMED } from '../emails/confirmation-email';
 
-/** Bookings joined with their customer and room. Every admin query starts here. */
+/**
+ * Bookings joined with their customer, room and confirmation email (at most
+ * one, UNIQUE (booking_id, kind)). Every admin query starts here.
+ */
 function adminBookings(db: Kysely<Database>) {
   return db
     .selectFrom('bookings')
     .innerJoin('users', 'users.id', 'bookings.customer_id')
-    .leftJoin('rooms', 'rooms.id', 'bookings.room_id');
+    .leftJoin('rooms', 'rooms.id', 'bookings.room_id')
+    .leftJoin('email_outbox', (join) =>
+      join
+        .onRef('email_outbox.booking_id', '=', 'bookings.id')
+        .on('email_outbox.kind', '=', BOOKING_CONFIRMED),
+    );
 }
+
+const ADMIN_COLUMNS = [
+  'users.name as customer_name',
+  'users.email as customer_email',
+  'rooms.name as room_name',
+  'email_outbox.status as email_status',
+  'email_outbox.attempts as email_attempts',
+  'email_outbox.last_error as email_last_error',
+  'email_outbox.sent_at as email_sent_at',
+  'email_outbox.next_attempt_at as email_next_attempt_at',
+] as const;
 
 function withFilters(
   db: Kysely<Database>,
@@ -31,11 +51,7 @@ export async function listAdminBookings(db: Kysely<Database>, query: AdminBookin
   const [rows, count] = await Promise.all([
     withFilters(db, query)
       .selectAll('bookings')
-      .select([
-        'users.name as customer_name',
-        'users.email as customer_email',
-        'rooms.name as room_name',
-      ])
+      .select(ADMIN_COLUMNS)
       .orderBy('bookings.created_at', 'desc')
       .orderBy('bookings.id', 'desc')
       .limit(query.pageSize)
@@ -51,11 +67,7 @@ export async function listAdminBookings(db: Kysely<Database>, query: AdminBookin
 export function findAdminBooking(db: Kysely<Database>, id: string) {
   return adminBookings(db)
     .selectAll('bookings')
-    .select([
-      'users.name as customer_name',
-      'users.email as customer_email',
-      'rooms.name as room_name',
-    ])
+    .select(ADMIN_COLUMNS)
     .where('bookings.id', '=', id)
     .executeTakeFirst();
 }
@@ -90,6 +102,22 @@ export function adminMarkCompleted(db: Kysely<Database>, id: string, now: Date) 
     .where('id', '=', id)
     .where('status', 'in', sourcesFor('completed'))
     .where('ends_at', '<=', now)
+    .returning('id')
+    .executeTakeFirst();
+}
+
+/**
+ * failed → pending, with a fresh set of attempts, due now. Only a failed email
+ * (WHERE status = 'failed'), so a retry can never resend one already sent.
+ * "Now" is the database clock, the same one that stamps new emails on confirm.
+ */
+export function requeueFailedEmail(db: Kysely<Database>, bookingId: string) {
+  return db
+    .updateTable('email_outbox')
+    .set({ status: 'pending', attempts: 0, next_attempt_at: sql<Date>`now()`, locked_until: null })
+    .where('booking_id', '=', bookingId)
+    .where('kind', '=', BOOKING_CONFIRMED)
+    .where('status', '=', 'failed')
     .returning('id')
     .executeTakeFirst();
 }
