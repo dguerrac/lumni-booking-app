@@ -1,20 +1,15 @@
-import { useEffect, useState } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter } from 'react-router';
+import { AppRoutes } from './router';
 
-// Step 0 placeholder: proves the web -> API proxy works.
+const queryClient = new QueryClient();
+
 export function App() {
-  const [apiStatus, setApiStatus] = useState('checking…');
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((res) => res.json())
-      .then((body: { status: string }) => setApiStatus(body.status))
-      .catch(() => setApiStatus('unreachable'));
-  }, []);
-
   return (
-    <main>
-      <h1>Lumni Coworking · Reservas</h1>
-      <p>API: {apiStatus}</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }

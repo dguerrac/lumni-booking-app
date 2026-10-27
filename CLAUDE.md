@@ -7,7 +7,7 @@ Project instructions for Claude Code. The human (Diego) sets the plan and review
 npm workspaces monorepo, all TypeScript (strict).
 
 - `apps/api` — Express 5 + Zod, Kysely + PostgreSQL, outbox email worker, AI assistant
-- `apps/web` — Vite + React + React Router + TanStack Query + react-hook-form
+- `apps/web` — Vite + React + React Router + TanStack Query + react-hook-form, CSS Modules with design tokens in `src/styles/theme.css` (palette names from evie-app)
 - `packages/shared` — Zod schemas, types and business constants used by api, web and the AI tools
 - Root: `docker-compose.yml` (Postgres on host port 5433, Mailpit 1025/8025), `README.md`, `INCIDENTE.md`, `consultas.sql`
 

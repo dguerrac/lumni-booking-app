@@ -1,0 +1,11 @@
+.brand {
+  font-size: var(--text-lg);
+  color: var(--color-corduroy);
+  white-space: nowrap;
+}
+
+.name {
+  font-weight: var(--weight-extra-bold);
+  color: var(--color-night-shadz);
+  letter-spacing: -0.01em;
+}
