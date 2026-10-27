@@ -5,7 +5,12 @@ import { z } from 'zod';
  * business rules (opening hours, duration 1–10 h, past dates) are checked by
  * the quoter and come back as reasons in a 200 response.
  */
-export const quoteRequestSchema = z
+/**
+ * A room and a time slot. Only the format is checked here (400 if wrong);
+ * business rules (opening hours, duration 1–10 h, past dates) are checked by
+ * the API and come back as reasons.
+ */
+export const slotSchema = z
   .object({
     roomId: z.number({ invalid_type_error: 'Elige una sala.' }).int().positive(),
     date: z
@@ -14,15 +19,19 @@ export const quoteRequestSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa el formato AAAA-MM-DD.'),
     startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Usa el formato HH:mm.'),
     durationHours: z.number({ invalid_type_error: 'Elige la duración.' }).positive().max(24),
-    extras: z
-      .object({
-        projector: z.boolean().optional(),
-        coffee: z.number().int().min(0).max(50).optional(),
-      })
-      .strict()
-      .optional(),
   })
   .strict();
+
+export type SlotRequest = z.infer<typeof slotSchema>;
+
+export const extrasSchema = z
+  .object({
+    projector: z.boolean().optional(),
+    coffee: z.number().int().min(0).max(50).optional(),
+  })
+  .strict();
+
+export const quoteRequestSchema = slotSchema.extend({ extras: extrasSchema.optional() }).strict();
 
 export type QuoteRequest = z.infer<typeof quoteRequestSchema>;
 

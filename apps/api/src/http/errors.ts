@@ -7,6 +7,7 @@ export class AppError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
   }
@@ -36,7 +37,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
 
   if (err instanceof AppError) {
-    res.status(err.status).json({ error: { code: err.code, message: err.message } });
+    const { status, code, message, details } = err;
+    res
+      .status(status)
+      .json({ error: details === undefined ? { code, message } : { code, message, details } });
     return;
   }
 

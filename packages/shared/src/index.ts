@@ -14,7 +14,15 @@ export type UserRole = (typeof USER_ROLES)[number];
 export type BookingExtras = { projector?: boolean; coffee?: number };
 
 export type { RoomDto } from './rooms';
-export { quoteRequestSchema } from './quotes';
-export type { PriceBreakdown, QuoteReason, QuoteRequest, QuoteResponse } from './quotes';
+export { extrasSchema, quoteRequestSchema, slotSchema } from './quotes';
+export type {
+  PriceBreakdown,
+  QuoteReason,
+  QuoteRequest,
+  QuoteResponse,
+  SlotRequest,
+} from './quotes';
+export { bookingStepSchema, contactStepSchema, createBookingSchema } from './bookings';
+export type { BookingDto, BookingStepRequest, ContactStep, WizardStep } from './bookings';
 export { loginRequestSchema } from './auth';
 export type { LoginRequest, UserDto } from './auth';

@@ -3,8 +3,9 @@ import type { ColumnType, Generated } from 'kysely';
 
 // Hand-written to mirror the migrations. pg returns timestamptz as Date;
 // inserts accept Date or an ISO string.
-type Timestamp = ColumnType<Date, Date | string, Date | string>;
 type NullableTimestamp = ColumnType<Date | null, Date | string | null, Date | string | null>;
+/** Has a database default: optional on insert. */
+type DefaultedTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;
 
 export interface UsersTable {
   id: Generated<number>;
@@ -46,8 +47,8 @@ export interface BookingsTable {
   cancel_reason: string | null;
   confirmed_at: NullableTimestamp;
   cancelled_at: NullableTimestamp;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: DefaultedTimestamp;
+  updated_at: DefaultedTimestamp;
 }
 
 export interface Database {

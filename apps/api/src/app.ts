@@ -4,6 +4,7 @@ import type { AppDeps } from './deps';
 import { sessionMiddleware } from './http/auth';
 import { errorHandler, notFoundHandler } from './http/errors';
 import { authRouter } from './modules/auth/auth.routes';
+import { bookingsRouter } from './modules/bookings/bookings.routes';
 import { quotesRouter } from './modules/quotes/quotes.routes';
 import { roomsRouter } from './modules/rooms/rooms.routes';
 
@@ -20,6 +21,7 @@ export function createApp(deps: AppDeps) {
   });
 
   app.use('/api/auth', authRouter(deps));
+  app.use('/api/bookings', bookingsRouter(deps));
   app.use('/api/rooms', roomsRouter(deps));
   app.use('/api/quotes', quotesRouter(deps));
 

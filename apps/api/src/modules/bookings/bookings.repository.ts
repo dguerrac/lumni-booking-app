@@ -1,5 +1,5 @@
-import { type Kysely, sql } from 'kysely';
-import type { Database } from '../../db/types';
+import { type Insertable, type Kysely, type Selectable, sql, type Updateable } from 'kysely';
+import type { BookingsTable, Database } from '../../db/types';
 
 export type BlockingBooking = { id: string; startsAt: Date; endsAt: Date };
 
@@ -30,4 +30,56 @@ export async function findBlockingBookings(
   // The confirmed_has_slot_and_price CHECK guarantees both are set for
   // confirmed and completed bookings.
   return rows.map((row) => ({ id: row.id, startsAt: row.starts_at!, endsAt: row.ends_at! }));
+}
+
+export type BookingRow = Selectable<BookingsTable>;
+
+export function insertDraft(db: Kysely<Database>, draft: Insertable<BookingsTable>) {
+  return db.insertInto('bookings').values(draft).returningAll().executeTakeFirstOrThrow();
+}
+
+/** Scoped to the customer: someone else's booking is simply not found. */
+export function findCustomerBooking(db: Kysely<Database>, id: string, customerId: number) {
+  return db
+    .selectFrom('bookings')
+    .selectAll()
+    .where('id', '=', id)
+    .where('customer_id', '=', customerId)
+    .executeTakeFirst();
+}
+
+export function findLatestDraft(db: Kysely<Database>, customerId: number) {
+  return db
+    .selectFrom('bookings')
+    .selectAll()
+    .where('customer_id', '=', customerId)
+    .where('status', '=', 'draft')
+    .orderBy('updated_at', 'desc')
+    .orderBy('created_at', 'desc')
+    .limit(1)
+    .executeTakeFirst();
+}
+
+/**
+ * Applies one wizard step, only while the booking is still a draft of this
+ * customer. Progress never moves back (GREATEST). undefined = nothing updated.
+ */
+export function updateDraft(
+  db: Kysely<Database>,
+  { id, customerId }: { id: string; customerId: number },
+  changes: Updateable<BookingsTable>,
+  reachedStep: number,
+) {
+  return db
+    .updateTable('bookings')
+    .set({
+      ...changes,
+      current_step: sql<number>`GREATEST(current_step, ${reachedStep})`,
+      updated_at: sql<Date>`now()`,
+    })
+    .where('id', '=', id)
+    .where('customer_id', '=', customerId)
+    .where('status', '=', 'draft')
+    .returningAll()
+    .executeTakeFirst();
 }
