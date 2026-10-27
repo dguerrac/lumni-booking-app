@@ -17,10 +17,12 @@
     "bcryptjs": "^3.0.2",
     "express": "^5.1.0",
     "kysely": "^0.27.5",
+    "luxon": "^3.5.0",
     "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/luxon": "^3.4.2",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
