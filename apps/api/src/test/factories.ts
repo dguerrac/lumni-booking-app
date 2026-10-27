@@ -8,9 +8,18 @@ export async function getSeedIds(db: Kysely<Database>) {
     .select('id')
     .where('email', '=', 'cliente.a@lumni.test')
     .executeTakeFirstOrThrow();
+  const customerB = await db
+    .selectFrom('users')
+    .select('id')
+    .where('email', '=', 'cliente.b@lumni.test')
+    .executeTakeFirstOrThrow();
   const rooms = await db.selectFrom('rooms').select('id').orderBy('id').execute();
 
-  return { customerAId: customerA.id, roomIds: rooms.map((r) => r.id) };
+  return {
+    customerAId: customerA.id,
+    customerBId: customerB.id,
+    roomIds: rooms.map((r) => r.id),
+  };
 }
 
 /** A valid confirmed booking; override any column. Times are ISO strings with offset. */

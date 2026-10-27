@@ -10,6 +10,7 @@ import type { BookingsTable, Database } from './types';
 
 let db: Kysely<Database>;
 let customerId: number;
+let otherCustomerId: number;
 let roomA: number;
 let roomB: number;
 
@@ -17,6 +18,7 @@ beforeAll(async () => {
   db = createDb(requireEnv('TEST_DATABASE_URL'));
   const ids = await getSeedIds(db);
   customerId = ids.customerAId;
+  otherCustomerId = ids.customerBId;
   [roomA, roomB] = ids.roomIds as [number, number];
 });
 
@@ -63,16 +65,37 @@ describe('no_overlap_confirmed exclusion constraint', () => {
     ).resolves.toBeDefined();
   });
 
-  it('ignores drafts: two drafts can hold the same slot', async () => {
+  it('ignores drafts: two customers can hold drafts for the same slot', async () => {
     const draft = {
-      customer_id: customerId,
       room_id: roomA,
       starts_at: '2026-11-03T10:00:00-05:00',
       ends_at: '2026-11-03T12:00:00-05:00',
     };
-    await insert(draft);
+    await insert({ ...draft, customer_id: customerId });
 
-    await expect(insert(draft)).resolves.toBeDefined();
+    await expect(insert({ ...draft, customer_id: otherCustomerId })).resolves.toBeDefined();
+  });
+});
+
+describe('one_draft_per_customer unique index', () => {
+  it('rejects a second open draft for the same customer', async () => {
+    await insert({ customer_id: customerId });
+
+    await expect(insert({ customer_id: customerId })).rejects.toMatchObject({
+      code: '23505',
+      constraint: 'one_draft_per_customer',
+    });
+  });
+
+  it('allows a new draft once the previous one is no longer a draft', async () => {
+    await insert({
+      customer_id: customerId,
+      status: 'cancelled',
+      cancel_reason: 'Descartado',
+      cancelled_at: new Date(),
+    });
+
+    await expect(insert({ customer_id: customerId })).resolves.toBeDefined();
   });
 });
 
