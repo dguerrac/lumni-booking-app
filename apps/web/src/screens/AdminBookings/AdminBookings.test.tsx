@@ -131,6 +131,36 @@ describe('Admin bookings list', () => {
   });
 });
 
+describe('Admin bookings list: confirmation email (Part 2.1)', () => {
+  const email = (status: 'sent' | 'retrying' | 'failed', attempts: number) => ({
+    status,
+    attempts,
+    maxAttempts: 6,
+    lastError: status === 'sent' ? null : 'SMTP 421',
+    sentAt: status === 'sent' ? '2026-11-02T13:30:05.000Z' : null,
+    nextAttemptAt: '2026-11-02T13:31:00.000Z',
+  });
+
+  it('shows the email status of each booking', async () => {
+    mockSession({ loggedInAs: adminUser });
+    mockAdminList([
+      adminBookingDto({ id: '00000000-0000-4000-8000-000000000001', email: email('sent', 1) }),
+      adminBookingDto({ id: '00000000-0000-4000-8000-000000000002', email: email('retrying', 3) }),
+      adminBookingDto({ id: '00000000-0000-4000-8000-000000000003', email: email('failed', 6) }),
+      adminBookingDto({ id: '00000000-0000-4000-8000-000000000004', status: 'draft' }),
+    ]);
+    renderApp('/admin');
+
+    const table = await screen.findByRole('table', { name: 'Reservas' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(within(table).getByRole('columnheader', { name: 'Correo' })).toBeInTheDocument();
+    expect(rows[0]).toHaveTextContent('Enviado');
+    expect(rows[1]).toHaveTextContent('Reintentando (3 de 6 intentos)');
+    expect(rows[2]).toHaveTextContent('Falló');
+    expect(rows[3]).toHaveTextContent('Sin correo');
+  });
+});
+
 describe('Admin access', () => {
   it('shows the "Reservas" link in the header to admins only', async () => {
     mockSession({ loggedInAs: adminUser });

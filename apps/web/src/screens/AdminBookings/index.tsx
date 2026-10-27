@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useAdminBookings } from '../../api/admin';
 import { useRooms } from '../../api/quotes';
 import { Button } from '../../components/Button';
+import { EmailStatusBadge } from '../../components/EmailStatusBadge';
 import { ErrorList } from '../../components/ErrorList';
 import { SelectField } from '../../components/SelectField';
 import { Spinner } from '../../components/Spinner';
@@ -96,6 +97,7 @@ export function AdminBookingsScreen() {
                   <th scope="col">Sala</th>
                   <th scope="col">Cliente</th>
                   <th scope="col">Estado</th>
+                  <th scope="col">Correo</th>
                   <th scope="col" className={styles.amount}>
                     Total
                   </th>
@@ -118,6 +120,9 @@ export function AdminBookingsScreen() {
                     </td>
                     <td>
                       <StatusBadge status={booking.status} />
+                    </td>
+                    <td>
+                      <EmailStatusBadge email={booking.email} />
                     </td>
                     <td className={styles.amount}>
                       {booking.price ? formatCop(booking.price.total) : '—'}
