@@ -23,7 +23,17 @@ Pruebas: `npm test`
 
 ## Usuarios de prueba
 
-_Pendiente (paso 1)._
+Creados por `npm run db:seed` (se puede correr varias veces sin duplicar nada).
+
+| Rol       | Correo               | Contraseña   |
+| --------- | -------------------- | ------------ |
+| Cliente A | cliente.a@lumni.test | ClienteA123! |
+| Cliente B | cliente.b@lumni.test | ClienteB123! |
+| Admin     | admin@lumni.test     | Admin123!    |
+
+El segundo cliente existe para demostrar que ni el API ni el asistente de IA muestran reservas de otro cliente.
+
+Salas: Andes y Caribe (pequeñas, 4 personas), Pacífico y Amazonas (medianas, 8), Orinoco (grande, 16).
 
 ## Arquitectura
 

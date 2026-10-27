@@ -6,19 +6,23 @@
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/server.ts",
     "start": "tsx --env-file=../../.env src/server.ts",
-    "db:migrate": "echo \"No migrations yet (added in Step 1)\"",
-    "db:seed": "echo \"No seed yet (added in Step 1)\"",
+    "db:migrate": "tsx --env-file=../../.env src/db/run-migrations.ts",
+    "db:seed": "tsx --env-file=../../.env src/db/run-seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@lumni/shared": "*",
-    "express": "^5.1.0"
+    "bcryptjs": "^3.0.2",
+    "express": "^5.1.0",
+    "kysely": "^0.27.5",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",

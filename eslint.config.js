@@ -8,7 +8,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['apps/api/**/*.ts', 'packages/**/*.ts'],
+    files: ['apps/api/**/*.ts', 'packages/**/*.ts', '.claude/**/*.mjs', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
   {

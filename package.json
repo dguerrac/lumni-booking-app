@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20.11"
+    "node": ">=20.12"
   },
   "scripts": {
     "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @lumni/api\" \"npm run dev -w @lumni/web\"",
