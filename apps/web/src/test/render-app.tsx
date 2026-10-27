@@ -11,9 +11,12 @@ export function renderApp(path = '/') {
   });
   const user = userEvent.setup();
   let pathname = path;
+  let search = '';
 
   function LocationSpy() {
-    pathname = useLocation().pathname;
+    const location = useLocation();
+    pathname = location.pathname;
+    search = location.search;
     return null;
   }
 
@@ -26,5 +29,5 @@ export function renderApp(path = '/') {
     </QueryClientProvider>,
   );
 
-  return { user, currentPath: () => pathname };
+  return { user, currentPath: () => pathname, currentUrl: () => pathname + search };
 }
