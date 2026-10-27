@@ -1,0 +1,19 @@
+.denied {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-extra-bold);
+}
+
+.text {
+  color: var(--color-corduroy);
+}
+
+.link {
+  color: var(--color-night-shadz);
+  font-weight: var(--weight-bold);
+}
