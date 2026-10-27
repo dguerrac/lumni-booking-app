@@ -1,0 +1,42 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: '';
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-pill);
+}
+
+.sent::before {
+  background: var(--color-de-york);
+}
+
+.pending::before,
+.sending::before,
+.retrying::before {
+  background: var(--color-malibu);
+}
+
+.failed {
+  color: var(--color-carnation);
+  font-weight: var(--weight-bold);
+}
+
+.failed::before {
+  background: var(--color-carnation);
+}
+
+.none {
+  color: var(--color-gray);
+}
+
+.none::before {
+  background: var(--color-alto);
+}
