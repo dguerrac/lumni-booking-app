@@ -212,6 +212,65 @@ _Pendiente (Parte 2.2), incluida la regla 4._
 | Edición de la reserva confirmada por el cliente | No la pide el enunciado; solo el admin la cancela                                                                                                                      |
 | Ver "mis reservas" como cliente                 | No la pide el enunciado; el cliente ve su confirmación y retoma su borrador                                                                                            |
 
+## Bonus Rails
+
+**El problema.** `before_save :regenerate_invoice, if: -> { status == 'confirmed' }` mira el **estado**, no la **transición**. Cada vez que se guarda una reserva ya confirmada (cambiar las notas, un job de pagos que actualiza un campo, un segundo confirm) se borra la factura emitida y se crea otra. Consecuencias, de más a menos grave:
+
+1. **Se recalcula el precio pactado:** `lines_total` y `TaxCalculator.for(self)` se evalúan con los datos y el IVA de hoy. Rompe la regla de la Parte 1 de no recalcular un precio ya acordado.
+2. **Se borra una factura emitida** y aparece otra con otro id. En Colombia una factura emitida tiene consecutivo DIAN y se anula con nota crédito; no se borra.
+3. **La reserva puede quedar confirmada sin factura, sin concurrencia de por medio:** la factura nueva se guarda después de la reserva y, si es inválida, `save` devuelve `true` igual. La vieja ya se destruyó.
+4. **Concurrencia:** sin índice único en `invoices.booking_id`, dos guardados simultáneos dejan dos facturas.
+
+**La corrección.** Emitir la factura una sola vez, en la transición `draft → confirmed`, de forma idempotente, y no volver a tocarla:
+
+```ruby
+class Booking < ApplicationRecord
+  has_one :invoice
+
+  after_save :issue_invoice, if: -> { saved_change_to_status?(from: 'draft', to: 'confirmed') }
+
+  private
+
+  def issue_invoice
+    Invoice.create_or_find_by!(booking_id: id) do |invoice|
+      invoice.total = lines_total
+      invoice.tax = TaxCalculator.for(self)
+    end
+  end
+end
+
+# migración
+add_index :invoices, :booking_id, unique: true
+```
+
+- `saved_change_to_status?` es la forma correcta dentro de `after_save` (`status_changed?` ahí ya es `false`).
+- `create_or_find_by!` inserta dentro de un savepoint y se apoya en el índice único: un confirm repetido o simultáneo encuentra la factura existente en vez de fallar. Un `rescue ActiveRecord::RecordNotUnique` sin savepoint no sirve en PostgreSQL: la transacción queda abortada y el COMMIT se vuelve ROLLBACK en silencio.
+- `after_save` corre dentro de la transacción del guardado y `create_or_find_by!` lanza error si la factura es inválida, así que la reserva no queda confirmada sin factura.
+- Quito `dependent: :destroy`: una reserva con factura emitida se cancela, no se borra.
+
+En un código real preferiría un servicio explícito (`Booking#confirm!`), igual que el confirm de la Parte 1, en lugar de un callback.
+
+**Cómo lo verifiqué.** `bonus_rails/verify.rb` corre los dos modelos contra ActiveRecord 8.0.2 y PostgreSQL reales (16 comprobaciones). Reproduce los cuatro problemas, muestra que la corrección emite una sola factura aunque cambie el IVA o se confirme dos veces, y que dos "correcciones" tentadoras fallan (`status_changed?` en `after_save` nunca dispara; `rescue RecordNotUnique` hace que `save` devuelva `true` sin guardar nada). Al romper la corrección a propósito aprendí algo: lo que de verdad evita la factura duplicada es el índice único con `create_or_find_by!`; la condición de transición evita trabajo y deja clara la intención. La concurrencia se simula con dos instancias desactualizadas, no con hilos reales.
+
+```bash
+createdb -h localhost -p 5433 -U lumni rails_bonus   # contraseña: lumni
+DATABASE_URL=postgres://lumni:lumni@localhost:5433/rails_bonus ruby bonus_rails/verify.rb
+```
+
+Requiere Ruby 3.2 o superior; instala `activerecord` y `pg` la primera vez.
+
 ## Uso de IA
 
-_Pendiente: herramienta, en qué partes, un ejemplo corregido o descartado, qué verifiqué yo._
+**Herramienta:** Claude (Anthropic), como agente con acceso a la carpeta del repositorio. Las instrucciones del proyecto están en [`CLAUDE.md`](CLAUDE.md).
+
+**En qué partes:** en todas. La IA propuso el plan por pasos, escribió las pruebas primero (TDD) y luego el código, y redactó la documentación. Yo aprobé cada paso, corrí las pruebas en mi máquina e hice cada commit. Decisiones que tomé yo: TDD también en el frontend, el indicador de carga, renombrar `subtotal` a `base`, una sola reserva en borrador por cliente garantizada por la base, y commits pequeños.
+
+**Lo que la IA propuso y corregimos:**
+
+1. **Una prueba de concurrencia que pasaba por suerte.** La primera versión lanzaba dos confirmaciones con `Promise.all`. Al quitar a propósito la protección contra doble reserva, la prueba seguía pasando: las dos peticiones casi nunca coincidían. La reemplazamos por `releaseTogether`, que bloquea la fila y espera en `pg_stat_activity` a que ambas peticiones estén realmente esperando antes de soltarlas. Ahora romper la protección hace fallar la prueba siempre.
+2. **Un enrutador que fallaba en mi máquina.** La IA usó el modo de datos de React Router (`createMemoryRouter`). En su entorno (Node 22) las pruebas pasaban; en mi Mac (Node 24) fallaban con `Expected signal to be an instance of AbortSignal`. Lo reprodujimos con Node 24 y pasamos al modo declarativo. Desde entonces corro la suite en Node 22 y 24.
+3. **Dos relojes distintos.** Reintentar un correo fallido usaba el reloj de la aplicación, pero el worker que lo procesa usa `now()` de la base. Cambiamos el reintento a `now()` de la base para que ambos midan el mismo tiempo.
+4. **Una hipótesis equivocada en el incidente.** El primer plan de `INCIDENTE.md` decía que fallaban los recordatorios creados después de las 16:00. Al compararlo con un segundo plan vi que 16:00–17:30 sigue dentro de la ventana, y que el 92 % no es una tasa porque no tiene denominador. Lo corregí antes de escribirlo.
+5. **Qué protege de verdad en el bonus Rails.** Al romper la corrección a propósito, la condición de transición resultó no ser lo que evita la factura duplicada: es el índice único. Lo dejé escrito así.
+
+**Qué verifiqué yo:** la suite completa (pruebas de API contra PostgreSQL real y de frontend) en mi máquina antes de cada commit; las pruebas de concurrencia y de idempotencia rompiendo el código a propósito; la interfaz con capturas en escritorio y móvil; los correos y sus reintentos en Mailpit; y el bonus Rails corriendo `bonus_rails/verify.rb`.
