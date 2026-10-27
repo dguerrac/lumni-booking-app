@@ -38,7 +38,7 @@ export interface BookingsTable {
   extras: Generated<BookingExtras>;
   status: Generated<BookingStatus>;
   current_step: Generated<number>;
-  subtotal: number | null;
+  base: number | null;
   discount: number | null;
   surcharge: number | null;
   extras_total: number | null;
