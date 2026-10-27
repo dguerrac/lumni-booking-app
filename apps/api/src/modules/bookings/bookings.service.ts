@@ -6,6 +6,8 @@ import { AppError, NotFoundError } from '../../http/errors';
 import { findUserById } from '../auth/auth.repository';
 import { toSlotBounds } from '../quotes/domain/slot-interval';
 import { validateSlot } from '../quotes/domain/validate-slot';
+import { BOOKING_CONFIRMED, buildConfirmationPayload } from '../emails/confirmation-email';
+import { enqueueEmail } from '../emails/outbox.repository';
 import { findNextAvailableSlot } from '../quotes/domain/find-next-available-slot';
 import { priceQuote } from '../quotes/domain/price-quote';
 import { findRoomById } from '../rooms/rooms.repository';
@@ -215,7 +217,16 @@ export async function confirmBooking(
   try {
     confirmed = await db.transaction().execute(async (trx) => {
       const updated = await markConfirmed(trx, { id, customerId }, price);
-      // Part 2: the confirmation email is enqueued here, in the same transaction.
+      // Only the request that actually confirmed queues the email, in the same
+      // transaction: both commit or neither does. No SMTP call happens here.
+      if (updated) {
+        await enqueueEmail(trx, {
+          bookingId: updated.id,
+          kind: BOOKING_CONFIRMED,
+          toEmail: updated.contact_email!,
+          payload: buildConfirmationPayload(toBookingDto(updated), room.name),
+        });
+      }
       return updated;
     });
   } catch (error) {
