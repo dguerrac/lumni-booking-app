@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { PRICING } from './pricing-config';
+import { toSlotBounds } from './slot-interval';
 
 export type SlotInput = {
   /** Calendar date in Bogotá, 'YYYY-MM-DD'. */
@@ -38,9 +39,8 @@ export function validateSlot(input: SlotInput, now: DateTime): SlotViolation[] {
   }
 
   const violations: SlotViolation[] = [];
-  const start = DateTime.fromISO(`${input.date}T${input.startTime}`, { zone: timeZone });
+  const { start, end } = toSlotBounds(input);
   const durationMinutes = input.durationHours * 60;
-  const end = start.plus({ minutes: durationMinutes });
 
   const durationInRange =
     input.durationHours >= minDurationHours && input.durationHours <= maxDurationHours;

@@ -1,4 +1,4 @@
-import type { BookingExtras, RoomSize } from '@lumni/shared';
+import type { BookingExtras, PriceBreakdown, RoomSize } from '@lumni/shared';
 import { DateTime } from 'luxon';
 import { PRICING } from './pricing-config';
 
@@ -8,15 +8,6 @@ export type PriceInput = {
   date: string;
   durationHours: number;
   extras?: BookingExtras;
-};
-
-/** Integer Colombian pesos. */
-export type PriceBreakdown = {
-  base: number;
-  discount: number;
-  surcharge: number;
-  extrasTotal: number;
-  total: number;
 };
 
 const SATURDAY = 6;

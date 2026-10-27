@@ -1,9 +1,7 @@
-import { DateTime, Interval } from 'luxon';
+import type { DateTime } from 'luxon';
 import { PRICING } from './pricing-config';
+import { type BusyInterval, overlapsAny, toSlotBounds } from './slot-interval';
 import { type SlotInput, validateSlot } from './validate-slot';
-
-/** A time the room is taken. Same shape the bookings repository returns. */
-export type BusyInterval = { startsAt: Date; endsAt: Date };
 
 export type SuggestedSlot = { startTime: string; endTime: string };
 
@@ -19,16 +17,10 @@ export function findNextAvailableSlot(
   busy: BusyInterval[],
   now: DateTime,
 ): SuggestedSlot | null {
-  const { timeZone, slotStepMinutes } = PRICING;
+  const { slotStepMinutes } = PRICING;
 
-  const requestedStart = DateTime.fromISO(`${requested.date}T${requested.startTime}`, {
-    zone: timeZone,
-  });
+  const { start: requestedStart } = toSlotBounds(requested);
   if (!requestedStart.isValid) return null;
-
-  const busyIntervals = busy.map((b) =>
-    Interval.fromDateTimes(DateTime.fromJSDate(b.startsAt), DateTime.fromJSDate(b.endsAt)),
-  );
 
   // First :00 or :30 strictly after the requested start (09:00 → 09:30, 09:15 → 09:30).
   const minutesIntoDay = requestedStart.hour * 60 + requestedStart.minute;
@@ -40,14 +32,10 @@ export function findNextAvailableSlot(
     candidate = candidate.plus({ minutes: slotStepMinutes })
   ) {
     const startTime = candidate.toFormat('HH:mm');
-    const violations = validateSlot({ ...requested, startTime }, now);
-    if (violations.length > 0) continue;
+    if (validateSlot({ ...requested, startTime }, now).length > 0) continue;
 
     const end = candidate.plus({ minutes: requested.durationHours * 60 });
-    const slot = Interval.fromDateTimes(candidate, end);
-    // Luxon's overlaps() is half-open, like the database constraint:
-    // a slot starting exactly when a booking ends is free.
-    if (busyIntervals.some((b) => b.overlaps(slot))) continue;
+    if (overlapsAny(candidate, end, busy)) continue;
 
     return { startTime, endTime: end.toFormat('HH:mm') };
   }
