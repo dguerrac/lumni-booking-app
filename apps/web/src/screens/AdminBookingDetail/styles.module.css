@@ -1,0 +1,112 @@
+.page,
+.notice {
+  display: grid;
+  min-width: 0;
+  justify-items: start;
+  gap: var(--space-5);
+}
+
+.back {
+  color: var(--color-night-shadz);
+  font-weight: var(--weight-bold);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-extra-bold);
+  line-height: var(--leading-tight);
+}
+
+.cancelled {
+  display: grid;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-panel);
+  background: var(--color-lavender-blush);
+}
+
+.label {
+  color: var(--color-corduroy);
+}
+
+.reason {
+  font-weight: var(--weight-bold);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.panel {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-white);
+  border-radius: var(--radius-panel);
+}
+
+.panelTitle {
+  font-size: var(--text-base);
+  font-weight: var(--weight-extra-bold);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  /* No column gap (the dt pads instead), so a border across a row is continuous. */
+  gap: var(--space-2) 0;
+  margin: 0;
+}
+
+.facts dt {
+  padding-right: var(--space-4);
+  color: var(--color-corduroy);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.muted {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-corduroy);
+}
+
+.amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.totalLabel {
+  padding-top: var(--space-2);
+  border-top: var(--border-hairline);
+  font-weight: var(--weight-bold);
+  color: var(--color-cod-gray) !important;
+}
+
+.total {
+  padding-top: var(--space-2);
+  border-top: var(--border-hairline);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-extra-bold);
+  color: var(--color-night-shadz);
+}
+
+.actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 36rem;
+}

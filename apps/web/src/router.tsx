@@ -2,6 +2,7 @@ import { type RouteObject, useRoutes } from 'react-router';
 import { AppLayout } from './components/AppLayout';
 import { RequireAdmin } from './components/RequireAdmin';
 import { RequireAuth } from './components/RequireAuth';
+import { AdminBookingDetailScreen } from './screens/AdminBookingDetail';
 import { AdminBookingsScreen } from './screens/AdminBookings';
 import { BookingWizardScreen } from './screens/BookingWizard';
 import { LoginScreen } from './screens/Login';
@@ -21,7 +22,10 @@ export const routes: RouteObject[] = [
           {
             path: 'admin',
             element: <RequireAdmin />,
-            children: [{ index: true, element: <AdminBookingsScreen /> }],
+            children: [
+              { index: true, element: <AdminBookingsScreen /> },
+              { path: 'reservas/:id', element: <AdminBookingDetailScreen /> },
+            ],
           },
         ],
       },
