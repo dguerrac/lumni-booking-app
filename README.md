@@ -181,7 +181,20 @@ Pruebas de integración contra PostgreSQL real (`bookings.confirm.test.ts`, `boo
 
 ## Correo de confirmación en segundo plano
 
-_Pendiente (Parte 2.1)._
+**Cómo verlo:** confirma una reserva y abre Mailpit en http://localhost:8025. El correo llega en unos 2 segundos.
+
+**Cómo funciona (outbox transaccional):**
+
+1. Al confirmar, el mismo `UPDATE` que confirma la reserva y el `INSERT` en `email_outbox` van en **una sola transacción**: o existen los dos o ninguno. La petición responde sin tocar SMTP.
+2. Un worker dentro del proceso del API revisa la tabla cada 2 segundos. Toma hasta 10 correos pendientes con `SELECT … FOR UPDATE SKIP LOCKED` (varios workers nunca toman el mismo), los marca `sending` con un plazo de 60 s, cierra la transacción y **envía fuera de ella** (nunca mantiene una transacción abierta durante una llamada de red).
+3. Si el envío falla, reintenta con espera creciente: 5, 10, 20, 40 y 80 segundos (±20 % para no reintentar todos a la vez). "Se reintenta hasta 5 veces" = 1 intento + 5 reintentos; después queda `failed`, visible en el admin.
+4. Si un worker se cae a mitad de un envío, el plazo vence y otro worker lo retoma.
+
+**Un solo correo por reserva:** solo la petición que realmente confirmó inserta el correo, `UNIQUE (booking_id, kind)` hace imposible un segundo, y el insert usa `ON CONFLICT DO NOTHING`. Hay pruebas para confirmar dos veces, dos confirmaciones simultáneas y dos clientes compitiendo por el mismo horario.
+
+**El límite honesto:** la entrega es "al menos una vez". Si SMTP acepta el correo y el proceso muere antes de marcarlo `sent`, se reenviará. Cada correo lleva un `Message-ID` fijo por reserva (`<booking-confirmed.{id}@lumni.local>`) que un proveedor real puede usar para descartar el duplicado. "Exactamente una vez" no se puede garantizar entre dos sistemas distintos (la base de datos y el servidor de correo).
+
+**Para ver los reintentos en una demo:** pon `EMAIL_FAIL_FIRST_N=2` en `.env` y reinicia el API: los dos primeros envíos fallan y el tercero llega. Con `EMAIL_FAIL_FIRST_N=10` el correo termina en `failed` después de unos 2,5 minutos.
 
 ## Asistente de reservas con IA
 
