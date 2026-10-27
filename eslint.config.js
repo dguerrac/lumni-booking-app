@@ -8,6 +8,11 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     files: ['apps/api/**/*.ts', 'packages/**/*.ts', '.claude/**/*.mjs', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },

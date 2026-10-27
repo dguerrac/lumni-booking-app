@@ -80,7 +80,32 @@ packages/
 
 ## Decisiones
 
-_Pendiente: tabla de ambigüedades y decisiones._
+El enunciado deja vacíos; la regla es decidir, escribirlo y seguir. Estas son las decisiones tomadas.
+
+| Vacío en el enunciado                         | Decisión                                                                                                              | Por qué                                                                     |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| ¿La reserva debe terminar antes de las 21:00? | Sí: inicio ≥ 7:00 y fin ≤ 21:00                                                                                       | El horario de apertura es cuando se puede usar la sala                      |
+| Horas de inicio permitidas                    | En punto o y media (7:00, 7:30…)                                                                                      | Coincide con bloques de 30 minutos y simplifica buscar el siguiente horario |
+| Fechas y horas pasadas                        | Rechazadas; hoy solo con hora de inicio futura (hora de Bogotá)                                                       | No se puede reservar el pasado                                              |
+| Festivos                                      | Se ignoran (abre lunes a sábado aunque sea festivo)                                                                   | No está en el enunciado; requeriría una tabla de festivos                   |
+| Umbrales de descuento                         | ≥ 4 h → 10 %, ≥ 8 h → 20 %, no acumulables                                                                            | "Desde" es inclusivo                                                        |
+| Base del recargo                              | 25 % sobre (base − descuento)                                                                                         | Lo dice el enunciado; tiene prueba explícita                                |
+| Precio de los extras (no dado)                | Proyector 30.000 COP fijo por reserva; café 8.000 COP por persona                                                     | Necesitan un número; están en un solo objeto de configuración               |
+| ¿Descuento y recargo aplican a los extras?    | No: los extras se suman al final                                                                                      | Lo más simple de explicar                                                   |
+| Qué reservas bloquean un horario              | Confirmadas y completadas                                                                                             | El enunciado dice "confirmada"; los borradores no bloquean                  |
+| "Siguiente horario disponible el mismo día"   | El primer inicio posterior al pedido, misma duración, que termine antes de las 21:00 y esté libre; si no hay, se dice | "Siguiente" es después; evita sugerir el pasado                             |
+| Cotización de un horario no reservable        | `200` con `bookable: false`, razones y precio; `400` solo si el formato es inválido                                   | Es una cotización válida de un horario inválido                             |
+| Endpoints de salas y cotización               | Públicos (no requieren sesión)                                                                                        | Cotizar no cambia nada; reservar sí requiere sesión                         |
+| Moneda                                        | Pesos enteros, mostrados como $40.000                                                                                 | El enunciado usa COP sin decimales                                          |
+
+## API
+
+| Método | Ruta          | Descripción                                                                                                                            |
+| ------ | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/rooms`  | Salas con tamaño, capacidad y tarifa por hora                                                                                          |
+| POST   | `/api/quotes` | `{ roomId, date: 'AAAA-MM-DD', startTime: 'HH:mm', durationHours, extras? }` → desglose, `bookable`, razones y siguiente horario libre |
+
+Errores: siempre `{ error: { code, message, details? } }`.
 
 ## Garantías de concurrencia
 
