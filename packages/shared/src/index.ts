@@ -12,3 +12,7 @@ export type UserRole = (typeof USER_ROLES)[number];
 
 /** Extras chosen in wizard step 3. coffee = number of people who want coffee. */
 export type BookingExtras = { projector?: boolean; coffee?: number };
+
+export type { RoomDto } from './rooms';
+export { quoteRequestSchema } from './quotes';
+export type { PriceBreakdown, QuoteReason, QuoteRequest, QuoteResponse } from './quotes';
