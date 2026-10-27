@@ -7,10 +7,13 @@ import { z } from 'zod';
  */
 export const quoteRequestSchema = z
   .object({
-    roomId: z.number().int().positive(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa el formato AAAA-MM-DD.'),
+    roomId: z.number({ invalid_type_error: 'Elige una sala.' }).int().positive(),
+    date: z
+      .string()
+      .min(1, 'Elige una fecha.')
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa el formato AAAA-MM-DD.'),
     startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Usa el formato HH:mm.'),
-    durationHours: z.number().positive().max(24),
+    durationHours: z.number({ invalid_type_error: 'Elige la duración.' }).positive().max(24),
     extras: z
       .object({
         projector: z.boolean().optional(),
@@ -42,6 +45,8 @@ export type QuoteResponse = {
   /** ISO 8601 with the Bogotá offset; null when the date or time is not valid. */
   startsAt: string | null;
   endsAt: string | null;
+  /** Opening hours of that day, for the timeline; null when closed or the date is not valid. */
+  dayHours: { opensAt: string; closesAt: string } | null;
   breakdown: PriceBreakdown;
   bookable: boolean;
   reasons: QuoteReason[];

@@ -45,6 +45,7 @@ describe('POST /api/quotes', () => {
       durationHours: 2,
       startsAt: '2026-11-03T09:00:00.000-05:00',
       endsAt: '2026-11-03T11:00:00.000-05:00',
+      dayHours: { opensAt: '07:00', closesAt: '21:00' },
       breakdown: { base: 80_000, discount: 0, surcharge: 0, extrasTotal: 0, total: 80_000 },
       bookable: true,
       reasons: [],
@@ -104,6 +105,7 @@ describe('POST /api/quotes', () => {
     });
 
     expect(res.body.reasons.map((r: { code: string }) => r.code)).toEqual(['CLOSED_DAY']);
+    expect(res.body.dayHours).toBeNull();
   });
 
   it('includes the extras in the total', async () => {

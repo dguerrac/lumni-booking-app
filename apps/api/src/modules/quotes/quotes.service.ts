@@ -7,6 +7,7 @@ import { findBlockingBookings } from '../bookings/bookings.repository';
 import { findRoomById } from '../rooms/rooms.repository';
 import { findNextAvailableSlot } from './domain/find-next-available-slot';
 import { priceQuote } from './domain/price-quote';
+import { PRICING } from './domain/pricing-config';
 import { overlapsAny, toSlotBounds } from './domain/slot-interval';
 import { validateSlot } from './domain/validate-slot';
 
@@ -54,6 +55,7 @@ export async function createQuote(
     durationHours: input.durationHours,
     startsAt: start.isValid ? start.toISO() : null,
     endsAt: start.isValid ? end.toISO() : null,
+    dayHours: start.isValid ? (PRICING.openingHours[start.weekday] ?? null) : null,
     breakdown,
     bookable: reasons.length === 0,
     reasons,
