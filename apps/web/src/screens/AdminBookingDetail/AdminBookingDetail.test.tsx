@@ -16,6 +16,11 @@ function mockAdminBooking(
   let booking = initial;
   const writes: { action: string; body?: unknown }[] = [];
   server.use(
+    http.post(`*/api/admin/bookings/${ID}/email/retry`, () => {
+      writes.push({ action: 'retry-email' });
+      booking = { ...booking, email: { ...booking.email!, status: 'pending', attempts: 0 } };
+      return HttpResponse.json(booking);
+    }),
     http.get(`*/api/admin/bookings/${ID}`, () => HttpResponse.json(booking)),
     http.post(`*/api/admin/bookings/${ID}/cancel`, async ({ request }) => {
       const body = (await request.json()) as { reason: string };
@@ -51,6 +56,61 @@ function mockAdminBooking(
 beforeEach(() => {
   mockSession({ loggedInAs: adminUser });
   mockRooms();
+});
+
+const failedEmail = {
+  status: 'failed' as const,
+  attempts: 6,
+  maxAttempts: 6,
+  lastError: 'SMTP 550: buzón no existe',
+  sentAt: null,
+  nextAttemptAt: '2026-11-02T13:33:00.000Z',
+};
+
+describe('Admin booking detail: confirmation email (Part 2.1)', () => {
+  it('shows a sent email with when it was sent', async () => {
+    mockAdminBooking(
+      adminBookingDto({
+        id: ID,
+        email: {
+          ...failedEmail,
+          status: 'sent',
+          attempts: 1,
+          lastError: null,
+          sentAt: '2026-11-02T13:30:05.000Z',
+        },
+      }),
+    );
+    renderApp(`/admin/reservas/${ID}`);
+
+    const section = await screen.findByRole('region', { name: 'Correo de confirmación' });
+    expect(section).toHaveTextContent('Enviado');
+    expect(section).toHaveTextContent('2 de noviembre de 2026');
+    expect(within(section).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('shows why a failed email failed and sends it again on request', async () => {
+    const writes = mockAdminBooking(adminBookingDto({ id: ID, email: failedEmail }));
+    const { user } = renderApp(`/admin/reservas/${ID}`);
+
+    const section = await screen.findByRole('region', { name: 'Correo de confirmación' });
+    expect(section).toHaveTextContent('Falló');
+    expect(section).toHaveTextContent('6 de 6 intentos');
+    expect(section).toHaveTextContent('SMTP 550: buzón no existe');
+
+    await user.click(within(section).getByRole('button', { name: 'Reintentar envío' }));
+
+    expect(await within(section).findByText('En cola')).toBeInTheDocument();
+    expect(writes).toEqual([{ action: 'retry-email' }]);
+  });
+
+  it('says there is no email for a booking that was never confirmed', async () => {
+    mockAdminBooking(adminBookingDto({ id: ID, status: 'draft', email: null }));
+    renderApp(`/admin/reservas/${ID}`);
+
+    const section = await screen.findByRole('region', { name: 'Correo de confirmación' });
+    expect(section).toHaveTextContent('Se envía al confirmar la reserva.');
+  });
 });
 
 describe('Admin booking detail', () => {

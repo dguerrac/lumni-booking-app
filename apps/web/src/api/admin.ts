@@ -46,3 +46,16 @@ function useAdminAction(id: string, action: 'cancel' | 'complete') {
 
 export const useAdminCancel = (id: string) => useAdminAction(id, 'cancel');
 export const useAdminComplete = (id: string) => useAdminAction(id, 'complete');
+
+/** Puts a failed confirmation email back in the queue; the worker sends it on its next pass. */
+export function useRetryEmail(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<AdminBookingDto>(`/api/admin/bookings/${id}/email/retry`, { method: 'POST' }),
+    onSuccess: (booking) => {
+      queryClient.setQueryData([...adminBookingsKey, 'detail', id], booking);
+      void queryClient.invalidateQueries({ queryKey: adminBookingsKey, exact: false });
+    },
+  });
+}

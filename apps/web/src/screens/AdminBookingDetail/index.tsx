@@ -8,6 +8,7 @@ import { PageLoader } from '../../components/PageLoader';
 import { StatusBadge } from '../../components/StatusBadge';
 import { endTimeOf, formatCop, formatLongDate } from '../../lib/format';
 import { CancelBooking } from './CancelBooking';
+import { EmailSection } from './EmailSection';
 import styles from './styles.module.css';
 
 const describeExtras = ({ projector, coffee }: BookingExtras) =>
@@ -123,6 +124,8 @@ function Detail({ booking }: { booking: AdminBookingDto }) {
             )}
           </dl>
         </section>
+
+        <EmailSection booking={booking} />
 
         {booking.price && (
           <section className={styles.panel} aria-label="Precio acordado">
