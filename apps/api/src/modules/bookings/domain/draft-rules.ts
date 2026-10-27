@@ -40,3 +40,40 @@ export function checkDraftRules({
 
   return violations;
 }
+
+type ConfirmableInput = {
+  partySize: number | null;
+  contact: { name: string | null; email: string | null; phone: string | null };
+  extras: { coffee?: number };
+  roomCapacity: number;
+};
+
+/**
+ * Everything a draft needs before it can become a booking: the contact data
+ * and party size from step 1, plus the party/room/coffee rules re-checked
+ * against what is stored now.
+ */
+export function checkConfirmable({
+  partySize,
+  contact,
+  extras,
+  roomCapacity,
+}: ConfirmableInput): QuoteReason[] {
+  const violations: QuoteReason[] = [];
+
+  if (!contact.name || !contact.email || !contact.phone) {
+    violations.push({
+      code: 'CONTACT_REQUIRED',
+      message: 'Completa nombre, correo y teléfono (paso 1).',
+    });
+  }
+  if (partySize === null) {
+    violations.push({
+      code: 'PARTY_SIZE_REQUIRED',
+      message: 'Indica cuántas personas asisten (paso 1).',
+    });
+    return violations;
+  }
+
+  return [...violations, ...checkDraftRules({ partySize, roomCapacity, coffee: extras.coffee })];
+}

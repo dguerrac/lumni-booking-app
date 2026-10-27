@@ -34,6 +34,7 @@ export function toBookingDto(row: BookingRow): BookingDto {
             extrasTotal: row.extras_total ?? 0,
             total: row.total,
           },
+    confirmedAt: row.confirmed_at ? row.confirmed_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };

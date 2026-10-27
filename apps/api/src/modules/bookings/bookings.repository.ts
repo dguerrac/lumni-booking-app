@@ -1,5 +1,7 @@
+import type { BookingStatus } from '@lumni/shared';
 import { type Insertable, type Kysely, type Selectable, sql, type Updateable } from 'kysely';
 import type { BookingsTable, Database } from '../../db/types';
+import { sourcesFor } from './domain/state-machine';
 
 export type BlockingBooking = { id: string; startsAt: Date; endsAt: Date };
 
@@ -34,8 +36,31 @@ export async function findBlockingBookings(
 
 export type BookingRow = Selectable<BookingsTable>;
 
-export function insertDraft(db: Kysely<Database>, draft: Insertable<BookingsTable>) {
-  return db.insertInto('bookings').values(draft).returningAll().executeTakeFirstOrThrow();
+/**
+ * Creates the customer's draft, or, if they already have one (unique index
+ * one_draft_per_customer), moves it to the new slot: same row, contact data
+ * and party size kept, extras cleared, back to step 1. One atomic statement,
+ * so concurrent calls can't create two drafts.
+ */
+export function upsertDraft(db: Kysely<Database>, draft: Insertable<BookingsTable>) {
+  return db
+    .insertInto('bookings')
+    .values(draft)
+    .onConflict((oc) =>
+      oc
+        .column('customer_id')
+        .where('status', '=', 'draft')
+        .doUpdateSet({
+          room_id: draft.room_id,
+          starts_at: draft.starts_at,
+          ends_at: draft.ends_at,
+          extras: sql`'{}'::jsonb`,
+          current_step: 1,
+          updated_at: sql`now()`,
+        }),
+    )
+    .returningAll()
+    .executeTakeFirstOrThrow();
 }
 
 /** Scoped to the customer: someone else's booking is simply not found. */
@@ -80,6 +105,66 @@ export function updateDraft(
     .where('id', '=', id)
     .where('customer_id', '=', customerId)
     .where('status', '=', 'draft')
+    .returningAll()
+    .executeTakeFirst();
+}
+
+/**
+ * draft → confirmed, with the price frozen in the same statement.
+ *
+ * - WHERE status IN (allowed sources) applies the state machine atomically.
+ *   Two concurrent confirms of the same row serialize on its row lock; the
+ *   second one re-checks the WHERE after the first commits, matches nothing
+ *   and returns undefined.
+ * - If another confirmed booking already holds this room and time, the
+ *   no_overlap_confirmed constraint raises 23P01 here.
+ */
+export function markConfirmed(
+  db: Kysely<Database>,
+  { id, customerId }: { id: string; customerId: number },
+  price: { base: number; discount: number; surcharge: number; extrasTotal: number; total: number },
+) {
+  return db
+    .updateTable('bookings')
+    .set({
+      status: 'confirmed',
+      confirmed_at: sql<Date>`now()`,
+      updated_at: sql<Date>`now()`,
+      base: price.base,
+      discount: price.discount,
+      surcharge: price.surcharge,
+      extras_total: price.extrasTotal,
+      total: price.total,
+    })
+    .where('id', '=', id)
+    .where('customer_id', '=', customerId)
+    .where('status', 'in', sourcesFor('confirmed'))
+    .returningAll()
+    .executeTakeFirst();
+}
+
+/**
+ * → cancelled, only from the given states (the caller's policy: a customer may
+ * only discard a draft). Same pattern as markConfirmed: the WHERE clause makes
+ * the check and the write one atomic step.
+ */
+export function markCancelled(
+  db: Kysely<Database>,
+  { id, customerId }: { id: string; customerId: number },
+  reason: string,
+  from: BookingStatus[],
+) {
+  return db
+    .updateTable('bookings')
+    .set({
+      status: 'cancelled',
+      cancel_reason: reason,
+      cancelled_at: sql<Date>`now()`,
+      updated_at: sql<Date>`now()`,
+    })
+    .where('id', '=', id)
+    .where('customer_id', '=', customerId)
+    .where('status', 'in', from)
     .returningAll()
     .executeTakeFirst();
 }

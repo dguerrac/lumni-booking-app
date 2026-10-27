@@ -60,6 +60,7 @@ describe('POST /api/bookings (create draft)', () => {
       },
       extras: {},
       price: null,
+      confirmedAt: null,
       createdAt: expect.any(String),
       updatedAt: expect.any(String),
     });
@@ -98,6 +99,57 @@ describe('POST /api/bookings (create draft)', () => {
     const res = await ana.post('/api/bookings').send({ ...slot(), customerId: 2 });
 
     expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/bookings when the customer already has a draft', () => {
+  it('reuses that draft: new slot, same contact data, extras cleared, back to step 1', async () => {
+    const ana = await loggedInAgent(app, 'anaGomez');
+    const first = await ana.post('/api/bookings').send(slot());
+    await ana.patch(`/api/bookings/${first.body.id}`).send({
+      step: 1,
+      data: {
+        contactName: 'Ana G.',
+        contactEmail: 'ana@andes.studio',
+        contactPhone: '3001234567',
+        partySize: 3,
+      },
+    });
+    await ana.patch(`/api/bookings/${first.body.id}`).send({ step: 3, data: { projector: true } });
+
+    const second = await ana
+      .post('/api/bookings')
+      .send(slot({ roomId: mediumRoomId, startTime: '15:00' }));
+
+    expect(second.status).toBe(201);
+    expect(second.body).toMatchObject({
+      id: first.body.id,
+      roomId: mediumRoomId,
+      startTime: '15:00',
+      currentStep: 1,
+      partySize: 3,
+      contact: { name: 'Ana G.', email: 'ana@andes.studio' },
+      extras: {},
+    });
+  });
+
+  it('keeps one draft even when two "Reservar" clicks arrive at once', async () => {
+    const ana = await loggedInAgent(app, 'anaGomez');
+
+    const [a, b] = await Promise.all([
+      ana.post('/api/bookings').send(slot()),
+      ana.post('/api/bookings').send(slot({ startTime: '15:00' })),
+    ]);
+
+    expect([a.status, b.status]).toEqual([201, 201]);
+    expect(a.body.id).toBe(b.body.id);
+    const drafts = await db
+      .selectFrom('bookings')
+      .select('id')
+      .where('customer_id', '=', anaId)
+      .where('status', '=', 'draft')
+      .execute();
+    expect(drafts).toHaveLength(1);
   });
 });
 

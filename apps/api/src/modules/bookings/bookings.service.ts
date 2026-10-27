@@ -6,15 +6,21 @@ import { AppError, NotFoundError } from '../../http/errors';
 import { findUserById } from '../auth/auth.repository';
 import { toSlotBounds } from '../quotes/domain/slot-interval';
 import { validateSlot } from '../quotes/domain/validate-slot';
+import { findNextAvailableSlot } from '../quotes/domain/find-next-available-slot';
+import { priceQuote } from '../quotes/domain/price-quote';
 import { findRoomById } from '../rooms/rooms.repository';
 import { toBookingDto } from './booking-dto';
 import {
+  findBlockingBookings,
   findCustomerBooking,
+  markCancelled,
+  markConfirmed,
   findLatestDraft,
-  insertDraft,
+  upsertDraft,
   updateDraft,
 } from './bookings.repository';
-import { checkDraftRules } from './domain/draft-rules';
+import { checkConfirmable, checkDraftRules } from './domain/draft-rules';
+import { assertTransition } from './domain/state-machine';
 
 const bookingNotFound = () => new NotFoundError('BOOKING_NOT_FOUND', 'La reserva no existe.');
 
@@ -34,7 +40,11 @@ async function assertSlotAllowed(db: Kysely<Database>, slot: SlotRequest, now: D
   return room;
 }
 
-/** Wizard step 1 starts here: a draft with the quoted slot and the customer's contact data. */
+/**
+ * Wizard step 1 starts here: a draft with the quoted slot and the customer's
+ * contact data. A customer has at most one draft; booking again moves it to
+ * the new slot (see upsertDraft).
+ */
 export async function createDraft(
   db: Kysely<Database>,
   customerId: number,
@@ -46,7 +56,7 @@ export async function createDraft(
   if (!customer) throw new AppError(401, 'UNAUTHENTICATED', 'Inicia sesión para continuar.');
 
   const { start, end } = toSlotBounds(slot);
-  const row = await insertDraft(db, {
+  const row = await upsertDraft(db, {
     customer_id: customerId,
     room_id: slot.roomId,
     starts_at: start.toJSDate(),
@@ -152,3 +162,125 @@ export async function saveDraftStep(
   if (!updated) throw notEditable();
   return toBookingDto(updated);
 }
+
+const EXCLUSION_VIOLATION = '23P01';
+
+/**
+ * draft → confirmed. The two guarantees live in the database:
+ * - Same draft confirmed twice (double click, retry, two tabs): the
+ *   conditional UPDATE only matches a draft, so the second call updates
+ *   nothing and gets the stored booking back, with the price agreed the
+ *   first time. Nothing is recalculated.
+ * - Two customers confirming the same room and time: the exclusion
+ *   constraint lets one commit and rejects the other (23P01 → 409).
+ *
+ * The price is computed here, by the server's quoter, at the moment of
+ * confirmation, and stored with the booking.
+ */
+export async function confirmBooking(
+  db: Kysely<Database>,
+  id: string,
+  customerId: number,
+  now: DateTime,
+): Promise<BookingDto> {
+  const row = await findCustomerBooking(db, id, customerId);
+  if (!row) throw bookingNotFound();
+  if (row.status === 'confirmed') return toBookingDto(row); // already done: idempotent
+  assertTransition(row.status, 'confirmed');
+
+  const booking = toBookingDto(row);
+  const room = await findRoomById(db, row.room_id!);
+  if (!room) throw new NotFoundError('ROOM_NOT_FOUND', 'La sala no existe.');
+  const slot = {
+    roomId: room.id,
+    date: booking.date!,
+    startTime: booking.startTime!,
+    durationHours: booking.durationHours!,
+  };
+
+  // The draft may have been saved days ago: re-check everything now.
+  assertNoViolations([
+    ...validateSlot(slot, now),
+    ...checkConfirmable({
+      partySize: booking.partySize,
+      contact: booking.contact,
+      extras: booking.extras,
+      roomCapacity: room.capacity,
+    }),
+  ]);
+
+  const price = priceQuote({ ...slot, roomSize: room.size, extras: booking.extras });
+
+  let confirmed;
+  try {
+    confirmed = await db.transaction().execute(async (trx) => {
+      const updated = await markConfirmed(trx, { id, customerId }, price);
+      // Part 2: the confirmation email is enqueued here, in the same transaction.
+      return updated;
+    });
+  } catch (error) {
+    if ((error as { code?: string }).code === EXCLUSION_VIOLATION) {
+      throw await slotTaken(db, slot, now);
+    }
+    throw error;
+  }
+
+  if (confirmed) return toBookingDto(confirmed);
+
+  // Nothing matched: a concurrent request changed the status first.
+  const current = await findCustomerBooking(db, id, customerId);
+  if (current?.status === 'confirmed') return toBookingDto(current); // the other confirm won
+  assertTransition(current?.status ?? row.status, 'confirmed');
+  throw notEditable();
+}
+
+/** 409 with the next free slot the same day, so the customer can pick another time. */
+async function slotTaken(
+  db: Kysely<Database>,
+  slot: SlotRequest,
+  now: DateTime,
+): Promise<AppError> {
+  const { start } = toSlotBounds(slot);
+  const dayStart = start.startOf('day');
+  const busy = await findBlockingBookings(db, {
+    roomId: slot.roomId,
+    from: dayStart.toJSDate(),
+    to: dayStart.plus({ days: 1 }).toJSDate(),
+  });
+  return new AppError(409, 'SLOT_TAKEN', 'Otra persona acaba de confirmar ese horario.', {
+    nextAvailable: findNextAvailableSlot(slot, busy, now),
+  });
+}
+
+const CUSTOMER_CANCEL_REASON = 'Borrador descartado por el cliente';
+
+/**
+ * A customer may discard their own draft. Cancelling a confirmed booking is an
+ * admin action (with a mandatory reason), so it's refused here.
+ */
+export async function cancelOwnDraft(
+  db: Kysely<Database>,
+  id: string,
+  customerId: number,
+): Promise<BookingDto> {
+  const row = await findCustomerBooking(db, id, customerId);
+  if (!row) throw bookingNotFound();
+  if (row.status === 'cancelled') return toBookingDto(row); // already done: idempotent
+  if (row.status !== 'draft') throw onlyDraftsCanBeDiscarded();
+  assertTransition(row.status, 'cancelled');
+
+  const cancelled = await markCancelled(db, { id, customerId }, CUSTOMER_CANCEL_REASON, ['draft']);
+  if (cancelled) return toBookingDto(cancelled);
+
+  // Nothing matched: a concurrent request changed the status first.
+  const current = await findCustomerBooking(db, id, customerId);
+  if (current?.status === 'cancelled') return toBookingDto(current);
+  throw onlyDraftsCanBeDiscarded();
+}
+
+const onlyDraftsCanBeDiscarded = () =>
+  new AppError(
+    409,
+    'BOOKING_NOT_EDITABLE',
+    'Solo puedes descartar una reserva en borrador. Para cancelar una reserva confirmada, contacta a Lumni.',
+  );

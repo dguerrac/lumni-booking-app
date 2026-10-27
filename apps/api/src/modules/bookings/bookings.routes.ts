@@ -5,6 +5,8 @@ import type { AppDeps } from '../../deps';
 import { requireAuth } from '../../http/auth';
 import { NotFoundError } from '../../http/errors';
 import {
+  cancelOwnDraft,
+  confirmBooking,
   createDraft,
   getCurrentDraft,
   getCustomerBooking,
@@ -40,6 +42,14 @@ export function bookingsRouter({ db, now }: AppDeps) {
     const id = parseBookingId(req.params.id);
     const input = bookingStepSchema.parse(req.body);
     res.json(await saveDraftStep(db, id, req.user!.id, input, now()));
+  });
+
+  router.post('/:id/confirm', async (req, res) => {
+    res.json(await confirmBooking(db, parseBookingId(req.params.id), req.user!.id, now()));
+  });
+
+  router.post('/:id/cancel', async (req, res) => {
+    res.json(await cancelOwnDraft(db, parseBookingId(req.params.id), req.user!.id));
   });
 
   return router;

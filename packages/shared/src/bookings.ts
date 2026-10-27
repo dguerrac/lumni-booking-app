@@ -28,6 +28,7 @@ export type BookingDto = {
   extras: BookingExtras;
   /** Frozen at confirmation; null while draft. */
   price: PriceBreakdown | null;
+  confirmedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

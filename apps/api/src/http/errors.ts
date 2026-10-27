@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
+import { InvalidTransitionError } from '../modules/bookings/domain/state-machine';
 
 /** An expected failure with a stable code the client can rely on. */
 export class AppError extends Error {
@@ -41,6 +42,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res
       .status(status)
       .json({ error: details === undefined ? { code, message } : { code, message, details } });
+    return;
+  }
+
+  if (err instanceof InvalidTransitionError) {
+    res.status(409).json({ error: { code: 'INVALID_TRANSITION', message: err.message } });
     return;
   }
 

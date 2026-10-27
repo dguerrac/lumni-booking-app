@@ -89,6 +89,7 @@ export function bookingDto(overrides: Partial<BookingDto> = {}): BookingDto {
     },
     extras: {},
     price: null,
+    confirmedAt: null,
     createdAt: '2026-11-02T13:00:00.000Z',
     updatedAt: '2026-11-02T13:00:00.000Z',
     ...overrides,
