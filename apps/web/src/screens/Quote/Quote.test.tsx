@@ -1,5 +1,5 @@
 import { screen, within } from '@testing-library/react';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { anaGomez, mockRooms, mockSession, quoteResponse } from '../../test/fixtures';
 import { renderApp } from '../../test/render-app';
@@ -107,6 +107,37 @@ describe('Quote screen', () => {
     expect(
       screen.getByText('No hay otro horario libre ese día con esta duración.'),
     ).toBeInTheDocument();
+  });
+
+  it('shows a loading state while it quotes, then the result', async () => {
+    let answer: (value: ReturnType<typeof quoteResponse>) => void = () => {};
+    server.use(
+      http.post(
+        '*/api/quotes',
+        () => new Promise((resolve) => (answer = (body) => resolve(HttpResponse.json(body)))),
+      ),
+    );
+    const { user } = renderApp('/');
+
+    await fillAndQuote(user);
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Calculando precio y disponibilidad…',
+    );
+    expect(screen.getByRole('button', { name: 'Cotizando…' })).toBeDisabled();
+
+    answer(quoteResponse());
+
+    expect(await screen.findByRole('heading', { name: 'Disponible' })).toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('says the rooms are loading until they arrive', async () => {
+    server.use(http.get('*/api/rooms', () => delay('infinite')));
+    renderApp('/');
+
+    expect(await screen.findByRole('option', { name: 'Cargando salas…' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Sala')).toBeDisabled();
   });
 
   it('asks for the missing fields before calling the API', async () => {

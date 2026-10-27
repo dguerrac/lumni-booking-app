@@ -62,6 +62,12 @@
   border: 2px dashed var(--color-alto);
 }
 
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 16rem;
+}
+
 .empty {
   max-width: 24rem;
   text-align: center;

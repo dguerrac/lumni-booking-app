@@ -5,6 +5,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router';
 import { useLogin, useMe } from '../../api/auth';
 import { BrandMark } from '../../components/BrandMark';
 import { Button } from '../../components/Button';
+import { PageLoader } from '../../components/PageLoader';
 import { TextField } from '../../components/TextField';
 import styles from './styles.module.css';
 
@@ -16,7 +17,7 @@ const TEST_ACCOUNTS = [
 ];
 
 export function LoginScreen() {
-  const { data: user } = useMe();
+  const { data: user, isPending: checkingSession } = useMe();
   const login = useLogin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,6 +30,7 @@ export function LoginScreen() {
     formState: { errors },
   } = useForm<LoginRequest>({ resolver: zodResolver(loginRequestSchema) });
 
+  if (checkingSession) return <PageLoader />;
   if (user) return <Navigate to={from} replace />;
 
   const onSubmit = handleSubmit((values) =>
@@ -67,7 +69,7 @@ export function LoginScreen() {
             </p>
           )}
 
-          <Button type="submit" disabled={login.isPending}>
+          <Button type="submit" loading={login.isPending}>
             {login.isPending ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </Button>
         </form>

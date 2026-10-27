@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useQuote, useRooms } from '../../api/quotes';
 import { Button } from '../../components/Button';
 import { SelectField } from '../../components/SelectField';
+import { Spinner } from '../../components/Spinner';
 import { TextField } from '../../components/TextField';
 import { formatCop, formatHours } from '../../lib/format';
 import { QuoteResult } from './QuoteResult';
@@ -55,10 +56,11 @@ export function QuoteScreen() {
             error={errors.roomId?.message}
             hint={selectedRoom && `${formatCop(selectedRoom.hourlyRate)} por hora`}
             defaultValue=""
+            disabled={rooms.isPending}
             {...register('roomId', { valueAsNumber: true })}
           >
             <option value="" disabled>
-              Elige una sala
+              {rooms.isPending ? 'Cargando salas…' : 'Elige una sala'}
             </option>
             {rooms.data?.map((room) => (
               <option key={room.id} value={room.id}>
@@ -95,7 +97,7 @@ export function QuoteScreen() {
             </SelectField>
           </div>
 
-          <Button type="submit" disabled={quote.isPending}>
+          <Button type="submit" loading={quote.isPending}>
             {quote.isPending ? 'Cotizando…' : 'Cotizar'}
           </Button>
 
@@ -106,8 +108,17 @@ export function QuoteScreen() {
           )}
         </form>
 
-        <section className={styles.resultPanel} aria-live="polite" aria-label="Resultado">
-          {quote.data ? (
+        <section
+          className={styles.resultPanel}
+          aria-live="polite"
+          aria-busy={quote.isPending}
+          aria-label="Resultado"
+        >
+          {quote.isPending ? (
+            <div className={styles.loading}>
+              <Spinner label="Calculando precio y disponibilidad…" />
+            </div>
+          ) : quote.data ? (
             <QuoteResult
               quote={quote.data}
               room={quotedRoom}
