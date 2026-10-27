@@ -13,9 +13,11 @@ npm workspaces monorepo, all TypeScript (strict).
 
 API modules live in `apps/api/src/modules/<module>/`: `<module>.routes.ts` (HTTP only) → `<module>.service.ts` (business rules, transactions) → `<module>.repository.ts` (SQL), plus `domain/` for pure functions. Shared infrastructure: `apps/api/src/db/` (Kysely client, migrations, seed) and `apps/api/src/http/` (error and auth middleware). Create folders only in the step that needs them.
 
-Layer-specific rules live in `.claude/rules/` and load automatically when a matching file is read or edited: `migrations`, `domain`, `api-layers`, `tests`, `assistant`, `web`.
-
 ## Agent tooling
+
+> The `.claude/` folder (rules, skills, hook) is local configuration on the author's machine and is not committed (see `.gitignore`). This file is the committed part. The rules below summarize what the local files enforce.
+
+Layer-specific rules in `.claude/rules/` load automatically when a matching file is read or edited: `migrations`, `domain`, `api-layers`, `tests`, `assistant`, `web`.
 
 | Skill             | Use for                                                                          |
 | ----------------- | -------------------------------------------------------------------------------- |
