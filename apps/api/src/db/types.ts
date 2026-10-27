@@ -51,8 +51,26 @@ export interface BookingsTable {
   updated_at: DefaultedTimestamp;
 }
 
+export type EmailStatus = 'pending' | 'retrying' | 'sending' | 'sent' | 'failed';
+
+export interface EmailOutboxTable {
+  id: Generated<string>; // bigserial: pg returns int8 as a string
+  booking_id: string;
+  kind: string;
+  to_email: string;
+  payload: unknown;
+  status: Generated<EmailStatus>;
+  attempts: Generated<number>;
+  next_attempt_at: DefaultedTimestamp;
+  locked_until: NullableTimestamp;
+  last_error: string | null;
+  sent_at: NullableTimestamp;
+  created_at: DefaultedTimestamp;
+}
+
 export interface Database {
   users: UsersTable;
   rooms: RoomsTable;
   bookings: BookingsTable;
+  email_outbox: EmailOutboxTable;
 }

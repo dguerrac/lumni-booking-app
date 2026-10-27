@@ -24,7 +24,7 @@ afterAll(async () => {
 
 /** Five bookings, created one minute apart (b1 oldest, b5 newest). */
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
   const at = (minute: number) => new Date(Date.UTC(2026, 10, 1, 12, minute));
   const slot = (date: string, from: string, to: string) => ({
     starts_at: `${date}T${from}:00-05:00`,

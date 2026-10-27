@@ -26,7 +26,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
 });
 
 /** A draft that went through wizard steps 1 and 3: Sala Andes, Tuesday 09:00–11:00. */

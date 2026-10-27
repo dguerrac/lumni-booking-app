@@ -23,7 +23,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
 });
 
 const quote = (body: object) => request(app).post('/api/quotes').send(body);

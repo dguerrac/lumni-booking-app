@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
 });
 
 const at = (time: string) => `2026-11-03T${time}:00-05:00`;

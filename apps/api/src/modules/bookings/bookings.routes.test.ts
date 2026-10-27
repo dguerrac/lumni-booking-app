@@ -25,7 +25,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
 });
 
 const slot = (overrides = {}) => ({

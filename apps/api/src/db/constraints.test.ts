@@ -27,7 +27,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`TRUNCATE bookings`.execute(db);
+  await sql`TRUNCATE bookings CASCADE`.execute(db);
 });
 
 const confirmed = (roomId: number, startsAt: string, endsAt: string) =>
@@ -96,6 +96,25 @@ describe('one_draft_per_customer unique index', () => {
     });
 
     await expect(insert({ customer_id: customerId })).resolves.toBeDefined();
+  });
+});
+
+describe('email_outbox: one email of each kind per booking', () => {
+  it('rejects a second confirmation email for the same booking', async () => {
+    const booking = await insert(
+      confirmed(roomA, '2026-11-03T10:00:00-05:00', '2026-11-03T12:00:00-05:00'),
+    );
+    const email = {
+      booking_id: booking.id,
+      kind: 'booking_confirmed',
+      to_email: 'ana@andes.studio',
+      payload: {},
+    };
+    await db.insertInto('email_outbox').values(email).execute();
+
+    await expect(db.insertInto('email_outbox').values(email).execute()).rejects.toMatchObject({
+      code: '23505',
+    });
   });
 });
 
