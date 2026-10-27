@@ -271,7 +271,7 @@ En un código real preferiría un servicio explícito (`Booking#confirm!`), igua
 **Cómo lo verifiqué.** `bonus_rails/verify.rb` corre los dos modelos contra ActiveRecord 8.0.2 y PostgreSQL reales (16 comprobaciones). Reproduce los cuatro problemas, muestra que la corrección emite una sola factura aunque cambie el IVA o se confirme dos veces, y que dos "correcciones" tentadoras fallan (`status_changed?` en `after_save` nunca dispara; `rescue RecordNotUnique` hace que `save` devuelva `true` sin guardar nada). Al romper la corrección a propósito aprendí algo: lo que de verdad evita la factura duplicada es el índice único con `create_or_find_by!`; la condición de transición evita trabajo y deja clara la intención. La concurrencia se simula con dos instancias desactualizadas, no con hilos reales.
 
 ```bash
-createdb -h localhost -p 5433 -U lumni rails_bonus   # contraseña: lumni
+docker compose exec postgres createdb -U lumni rails_bonus
 DATABASE_URL=postgres://lumni:lumni@localhost:5433/rails_bonus ruby bonus_rails/verify.rb
 ```
 
