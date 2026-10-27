@@ -1,0 +1,60 @@
+/*
+ * Design tokens. Palette names follow evie-app's theme (src/config/theme.ts);
+ * only the colors this app uses are declared. Styles use these variables,
+ * never raw values.
+ */
+:root {
+  /* Palette */
+  --color-night-shadz: #9b2c51;
+  --color-night-shadz-85: #9b2c51d9;
+  --color-lavender-blush: #ffeaf1;
+  --color-soft-lavender: #fff7fa;
+  --color-cod-gray: #1c1c1c;
+  --color-corduroy: #616261;
+  --color-gray: #818181;
+  --color-alto: #e0e0e0;
+  --color-mystic: #e5e9ef;
+  --color-malibu: #8093fc;
+  --color-malibu-25: #8093fc40;
+  --color-malibu-80: #8a9bfecc;
+  --color-carnation: #f45252;
+  --color-de-york: #6fcf97;
+  --color-white: #ffffff;
+
+  /* Type: Open Sans, as in evie-app */
+  --font-family: 'Open Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --weight-regular: 400;
+  --weight-bold: 700;
+  --weight-extra-bold: 800;
+
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.75rem;
+  --text-2xl: 2.5rem;
+
+  --leading-tight: 1.15;
+  --leading-normal: 1.5;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  /* Shape: inputs and panels get different radii on purpose (hierarchy) */
+  --radius-sm: 0.5rem;
+  --radius-input: 0.75rem;
+  --radius-panel: 1.25rem;
+  --radius-pill: 999px;
+
+  --border-hairline: 1px solid var(--color-mystic);
+  --shadow-input: 0 1px 2px var(--color-malibu-25);
+  --focus-ring: 0 0 0 3px var(--color-malibu-25);
+
+  --content-width: 72rem;
+}
