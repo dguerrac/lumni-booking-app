@@ -3,6 +3,7 @@ import express from 'express';
 import type { AppDeps } from './deps';
 import { sessionMiddleware } from './http/auth';
 import { errorHandler, notFoundHandler } from './http/errors';
+import { adminRouter } from './modules/admin/admin.routes';
 import { authRouter } from './modules/auth/auth.routes';
 import { bookingsRouter } from './modules/bookings/bookings.routes';
 import { quotesRouter } from './modules/quotes/quotes.routes';
@@ -20,6 +21,7 @@ export function createApp(deps: AppDeps) {
     res.json({ status: 'ok' });
   });
 
+  app.use('/api/admin', adminRouter(deps));
   app.use('/api/auth', authRouter(deps));
   app.use('/api/bookings', bookingsRouter(deps));
   app.use('/api/rooms', roomsRouter(deps));
