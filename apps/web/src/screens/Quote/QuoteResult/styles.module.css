@@ -97,3 +97,13 @@
   color: var(--color-night-shadz);
   font-variant-numeric: tabular-nums;
 }
+
+.book {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.bookError {
+  color: var(--color-carnation);
+  font-weight: var(--weight-bold);
+}

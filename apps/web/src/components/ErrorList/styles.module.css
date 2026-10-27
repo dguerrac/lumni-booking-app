@@ -1,0 +1,12 @@
+.box {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-input);
+  background: var(--color-lavender-blush);
+  color: var(--color-carnation);
+  font-weight: var(--weight-bold);
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-5);
+}

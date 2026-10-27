@@ -1,26 +1,24 @@
 import { type QuoteRequest, quoteRequestSchema } from '@lumni/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router';
+import { useCreateDraft } from '../../api/bookings';
 import { useQuote, useRooms } from '../../api/quotes';
 import { Button } from '../../components/Button';
 import { SelectField } from '../../components/SelectField';
 import { Spinner } from '../../components/Spinner';
 import { TextField } from '../../components/TextField';
 import { formatCop, formatHours } from '../../lib/format';
+import { DURATIONS, START_TIMES } from '../../lib/slot-options';
 import { QuoteResult } from './QuoteResult';
+import { ResumeDraftBanner } from './ResumeDraftBanner';
 import styles from './styles.module.css';
-
-// Choices offered by the form. The API re-checks every rule (opening hours,
-// past times, 30-minute blocks); these lists only keep the form short.
-const START_TIMES = Array.from({ length: 28 }, (_, i) => {
-  const minutes = 7 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 === 0 ? '00' : '30'}`;
-});
-const DURATIONS = Array.from({ length: 19 }, (_, i) => 1 + i * 0.5);
 
 export function QuoteScreen() {
   const rooms = useRooms();
   const quote = useQuote();
+  const createDraft = useCreateDraft();
+  const navigate = useNavigate();
 
   const {
     register,
@@ -37,6 +35,16 @@ export function QuoteScreen() {
   const selectedRoom = rooms.data?.find((room) => room.id === watch('roomId'));
   const quotedRoom = rooms.data?.find((room) => room.id === quote.data?.roomId);
 
+  // Books exactly what was quoted, not whatever the form holds now.
+  const bookQuotedSlot = () => {
+    if (!quote.data) return;
+    const { roomId, date, startTime, durationHours } = quote.data;
+    createDraft.mutate(
+      { roomId, date, startTime, durationHours },
+      { onSuccess: (booking) => navigate(`/reservas/${booking.id}`) },
+    );
+  };
+
   const useSuggestion = (startTime: string) => {
     setValue('startTime', startTime);
     void submitQuote();
@@ -44,6 +52,8 @@ export function QuoteScreen() {
 
   return (
     <div className={styles.page}>
+      <ResumeDraftBanner />
+
       <header className={styles.intro}>
         <h1 className={styles.title}>Cotiza tu sala</h1>
         <p className={styles.lead}>Mira el precio y si la sala está libre antes de reservar.</p>
@@ -124,6 +134,9 @@ export function QuoteScreen() {
               room={quotedRoom}
               onUseSuggestion={useSuggestion}
               isRequoting={quote.isPending}
+              onBook={bookQuotedSlot}
+              isBooking={createDraft.isPending}
+              bookingError={createDraft.error?.message}
             />
           ) : (
             <p className={styles.empty}>

@@ -1,6 +1,7 @@
 import { type RouteObject, useRoutes } from 'react-router';
 import { AppLayout } from './components/AppLayout';
 import { RequireAuth } from './components/RequireAuth';
+import { BookingWizardScreen } from './screens/BookingWizard';
 import { LoginScreen } from './screens/Login';
 import { QuoteScreen } from './screens/Quote';
 
@@ -9,7 +10,15 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <LoginScreen /> },
   {
     element: <RequireAuth />,
-    children: [{ element: <AppLayout />, children: [{ index: true, element: <QuoteScreen /> }] }],
+    children: [
+      {
+        element: <AppLayout />,
+        children: [
+          { index: true, element: <QuoteScreen /> },
+          { path: 'reservas/:id', element: <BookingWizardScreen /> },
+        ],
+      },
+    ],
   },
 ];
 

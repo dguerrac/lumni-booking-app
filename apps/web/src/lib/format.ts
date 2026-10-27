@@ -21,3 +21,9 @@ export const formatLongDate = (date: string) =>
     month: 'long',
     timeZone: 'America/Bogota',
   }).format(new Date(`${date}T12:00:00-05:00`));
+
+/** "09:00" + 2.5 → "11:30". Display only; the API owns every rule. */
+export const endTimeOf = (startTime: string, hours: number) => {
+  const end = minutesOf(startTime) + hours * 60;
+  return `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}`;
+};

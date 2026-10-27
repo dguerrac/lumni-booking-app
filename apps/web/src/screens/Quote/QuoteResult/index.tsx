@@ -7,12 +7,25 @@ import styles from './styles.module.css';
 type Props = {
   quote: QuoteResponse;
   room: RoomDto | undefined;
-  onUseSuggestion: (startTime: string) => void;
-  isRequoting: boolean;
+  /** Without it, the suggested slot is shown but can't be applied from here. */
+  onUseSuggestion?: (startTime: string) => void;
+  isRequoting?: boolean;
+  /** Without it, there is no "book" button (e.g. inside the wizard). */
+  onBook?: () => void;
+  isBooking?: boolean;
+  bookingError?: string;
 };
 
 /** Renders the API's quote as is: status, reasons, suggestion, timeline and price. */
-export function QuoteResult({ quote, room, onUseSuggestion, isRequoting }: Props) {
+export function QuoteResult({
+  quote,
+  room,
+  onUseSuggestion,
+  isRequoting = false,
+  onBook,
+  isBooking = false,
+  bookingError,
+}: Props) {
   // The API returns ISO times with the Bogotá offset, so characters 11–16 are the local HH:mm.
   const endTime = quote.endsAt?.slice(11, 16) ?? quote.startTime;
   const { breakdown } = quote;
@@ -35,7 +48,7 @@ export function QuoteResult({ quote, room, onUseSuggestion, isRequoting }: Props
               <li key={reason.code}>{reason.message}</li>
             ))}
           </ul>
-          {quote.nextAvailable ? (
+          {quote.nextAvailable && onUseSuggestion ? (
             <Button
               variant="secondary"
               onClick={() => onUseSuggestion(quote.nextAvailable!.startTime)}
@@ -43,6 +56,11 @@ export function QuoteResult({ quote, room, onUseSuggestion, isRequoting }: Props
             >
               Usar {quote.nextAvailable.startTime}–{quote.nextAvailable.endTime}
             </Button>
+          ) : quote.nextAvailable ? (
+            <p className={styles.noSuggestion}>
+              Siguiente horario libre: {quote.nextAvailable.startTime}–{quote.nextAvailable.endTime}
+              .
+            </p>
           ) : (
             <p className={styles.noSuggestion}>
               No hay otro horario libre ese día con esta duración.
@@ -95,6 +113,19 @@ export function QuoteResult({ quote, room, onUseSuggestion, isRequoting }: Props
           </span>
         </p>
       </div>
+
+      {quote.bookable && onBook && (
+        <div className={styles.book}>
+          <Button onClick={onBook} loading={isBooking}>
+            {isBooking ? 'Creando tu reserva…' : 'Reservar este horario'}
+          </Button>
+          {bookingError && (
+            <p role="alert" className={styles.bookError}>
+              {bookingError}
+            </p>
+          )}
+        </div>
+      )}
     </article>
   );
 }

@@ -1,4 +1,4 @@
-import type { QuoteResponse, RoomDto, UserDto } from '@lumni/shared';
+import type { BookingDto, QuoteResponse, RoomDto, UserDto } from '@lumni/shared';
 import { http, HttpResponse } from 'msw';
 import { server } from './server';
 
@@ -66,4 +66,36 @@ export function quoteResponse(overrides: Partial<QuoteResponse> = {}): QuoteResp
     nextAvailable: null,
     ...overrides,
   };
+}
+
+export const DRAFT_ID = '7f3c2a10-5b1e-4c8a-9d2f-0a1b2c3d4e5f';
+
+/** A fresh draft of Ana for Sala Andes, Tuesday 3 Nov 2026 09:00–11:00. */
+export function bookingDto(overrides: Partial<BookingDto> = {}): BookingDto {
+  return {
+    id: DRAFT_ID,
+    status: 'draft',
+    currentStep: 1,
+    roomId: 1,
+    date: '2026-11-03',
+    startTime: '09:00',
+    durationHours: 2,
+    partySize: null,
+    contact: {
+      name: anaGomez.name,
+      email: anaGomez.email,
+      phone: anaGomez.phone,
+      company: anaGomez.company,
+    },
+    extras: {},
+    price: null,
+    createdAt: '2026-11-02T13:00:00.000Z',
+    updatedAt: '2026-11-02T13:00:00.000Z',
+    ...overrides,
+  };
+}
+
+/** GET /api/bookings/draft/current answers with this draft. */
+export function mockCurrentDraft(draft: BookingDto) {
+  server.use(http.get('*/api/bookings/draft/current', () => HttpResponse.json(draft)));
 }
