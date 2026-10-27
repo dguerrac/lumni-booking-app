@@ -23,6 +23,24 @@ Pruebas: `npm test` (con `docker compose up -d` corriendo: las pruebas del API u
 
 Otros comandos: `npm run typecheck` · `npm run lint`
 
+### Variables de entorno
+
+`.env.example` trae valores que solo sirven en local (la base de Docker y Mailpit), así que la app corre copiándolo sin cambios. `.env` está en `.gitignore`. Al arrancar, el API valida todas las variables a la vez y, si algo falta o es inválido, lista cada problema y se detiene.
+
+| Variable                        | Requerida          | Para qué                                                                                          |
+| ------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                  | Sí                 | PostgreSQL de la app                                                                              |
+| `TEST_DATABASE_URL`             | Para pruebas       | Base `lumni_test`; las pruebas nunca tocan la base de la app                                      |
+| `JWT_SECRET`                    | Sí                 | Firma la sesión. En `NODE_ENV=production` se rechaza el valor de ejemplo y menos de 32 caracteres |
+| `SMTP_HOST`, `SMTP_PORT`        | Sí                 | Servidor de correo (Mailpit en local)                                                             |
+| `EMAIL_FROM`                    | Sí                 | Remitente del correo de confirmación                                                              |
+| `PORT`                          | No (3000)          | Puerto del API                                                                                    |
+| `NODE_ENV`                      | No (`development`) | En `production` exige un `JWT_SECRET` real y la cookie de sesión `Secure`                         |
+| `EMAIL_FAIL_FIRST_N`            | No (0)             | Solo para demos: hace fallar los primeros N envíos para ver los reintentos                        |
+| `ANTHROPIC_API_KEY`, `AI_MODEL` | Parte 2.2          | Asistente con IA (pendiente)                                                                      |
+
+En producción los secretos vendrían del gestor de secretos del proveedor, nunca del repositorio.
+
 ## Usuarios de prueba
 
 Creados por `npm run db:seed` (se puede correr varias veces sin duplicar nada).
@@ -272,5 +290,6 @@ Requiere Ruby 3.2 o superior; instala `activerecord` y `pg` la primera vez.
 3. **Dos relojes distintos.** Reintentar un correo fallido usaba el reloj de la aplicación, pero el worker que lo procesa usa `now()` de la base. Cambiamos el reintento a `now()` de la base para que ambos midan el mismo tiempo.
 4. **Una hipótesis equivocada en el incidente.** El primer plan de `INCIDENTE.md` decía que fallaban los recordatorios creados después de las 16:00. Al compararlo con un segundo plan vi que 16:00–17:30 sigue dentro de la ventana, y que el 92 % no es una tasa porque no tiene denominador. Lo corregí antes de escribirlo.
 5. **Qué protege de verdad en el bonus Rails.** Al romper la corrección a propósito, la condición de transición resultó no ser lo que evita la factura duplicada: es el índice único. Lo dejé escrito así.
+6. **Variables de entorno sin validar.** Al preguntarle cómo manejar `.env`, la IA revisó su propio código: `PORT` y `EMAIL_FAIL_FIRST_N` pasaban por `Number()` sin validar, así que un error de tipeo se volvía `NaN` en silencio. Le pedí validar todo el entorno al arrancar con Zod y rechazar el `JWT_SECRET` de ejemplo en producción. Comprobamos que las pruebas fallan si se quita cualquiera de las dos reglas.
 
 **Qué verifiqué yo:** la suite completa (pruebas de API contra PostgreSQL real y de frontend) en mi máquina antes de cada commit; las pruebas de concurrencia y de idempotencia rompiendo el código a propósito; la interfaz con capturas en escritorio y móvil; los correos y sus reintentos en Mailpit; y el bonus Rails corriendo `bonus_rails/verify.rb`.
